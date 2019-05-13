@@ -43,6 +43,13 @@ impl PartialOrd for Node {
     Some(self.cmp(other))
   }
 }
+impl TSP {
+  fn addEdge(&self, node: &mut Node, i: usize, j: usize) {
+    node.lower_bound += self.cost_with_pi[i][j];
+    node.degree[i] += 1;
+    node.degree[j] += 1;
+  }
+}
 //
 // fn (*TSP) readInput(Reader r) {
 //    //Pattern specification = Pattern.compile("\\s*([A-Z_]+)\\s*(:\\s*([0-9]+))?\\s*");
@@ -206,13 +213,6 @@ impl PartialOrd for Node {
 //    addEdge(node, 0, secondNeighbor);
 //    node.parent[0] = secondNeighbor;
 //    node.lowerBound = Math.rint(node.lowerBound);
-//  }
-//
-//  private void addEdge(Node node, int i, int j) {
-//    double q = node.lowerBound;
-//    node.lowerBound += costWithPi[i][j];
-//    node.degree[i]++;
-//    node.degree[j]++;
 //  }
 //}
 //
