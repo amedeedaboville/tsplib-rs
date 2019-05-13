@@ -111,7 +111,7 @@ impl TSP {
     node.degree[i] += 1;
     node.degree[j] += 1;
   }
-  fn exclude(&self, node: &mut Node, i: usize, j: usize) -> Node {
+  fn exclude(&mut self, node: &mut Node, i: usize, j: usize) -> Node {
     let mut child: Node = Default::default();
     child.excluded = node.excluded.clone();
     child.excluded[i] = node.excluded[i].clone();
@@ -121,14 +121,14 @@ impl TSP {
     self.computeHeldKarp(&mut child);
     child
   }
-  fn computeHeldKarp(&self, node: &mut Node) {
+  fn computeHeldKarp(&mut self, node: &mut Node) {
     node.lower_bound = n32(std::f32::MIN);
     node.degree = vec![0; self.n];
     node.parent = vec![0; self.n];
     let mut lambda = n32(0.1);
     while lambda > 1e-06 {
       let previous_lower = node.lower_bound;
-      //      computeOneTree(node);
+      self.computeOneTree(node);
       if !(node.lower_bound < self.best.lower_bound) {
         return;
       }
@@ -150,7 +150,7 @@ impl TSP {
     }
   }
   fn computeOneTree(&mut self, node: &mut Node) {
-    node.lower_bound = n32(0.0);
+    // node.lower_bound = n32(0.0);
     node.degree = vec![0; self.n];
     for i in 0..self.n {
       for j in 0..self.n {
@@ -184,6 +184,7 @@ impl TSP {
     node.parent[first_neighbor] = 0;
     // compute the minimum spanning tree on nodes 1..n-1
     let mut min_cost = self.cost_with_pi[first_neighbor].clone();
+    println!("{:?}", node);
     for _k in 2..self.n {
       let mut i = node.degree.iter().position(|&degree| degree == 0).unwrap();
       for j in (i + 1)..self.n {
@@ -191,6 +192,7 @@ impl TSP {
           i = j;
         }
       }
+      println!("{:?}", node.parent);
       self.addEdge(node, node.parent[i], i);
       for j in 1..self.n {
         if node.degree[j] == 0 && self.cost_with_pi[i][j] < min_cost[j] {
@@ -207,8 +209,9 @@ impl TSP {
     println!("{:?}", self);
     self.best.lower_bound = n32(std::f32::MAX);
     let mut currentNode: Node = Default::default();
+    currentNode.pi = vec![n32(0.0); self.n];
     currentNode.excluded = vec![vec![false; self.n]; self.n];
-    //  self.cost_with_pi = new double[n][n];
+    self.cost_with_pi = vec![vec![n32(0.0); self.n]; self.n];
     self.computeHeldKarp(&mut currentNode);
     let mut pq = BinaryHeap::new();
 
