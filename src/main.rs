@@ -17,7 +17,7 @@ struct TSP {
   y: Vec<f32>,
   cost: Vec<Vec<f32>>,
   cost_with_pi: Vec<Vec<f32>>,
-  // bestNode : Node
+  best: Node,
 }
 #[derive(Eq, Default)]
 struct Node {
@@ -58,6 +58,34 @@ impl TSP {
     child.excluded[j][i] = true;
     //    computeHeldKarp(child);
     child
+  }
+  fn computeHeldKarp(&self, node: &mut Node) {
+    node.lower_bound = n32(std::f32::MIN);
+    //    node.degree = new int[n];
+    //    node.parent = new int[n];
+    let mut lambda = n32(0.1);
+    while (lambda > 1e-06) {
+      let previous_lower = node.lower_bound;
+      //      computeOneTree(node);
+      if !(node.lower_bound < self.best.lower_bound) {
+        return;
+      }
+      if !(node.lower_bound < previous_lower) {
+        lambda *= 0.9;
+      }
+      let mut denom: i32 = 0;
+      for i in 1..self.n {
+        let degree = node.degree[i as usize];
+        denom += (degree - 2) ^ 2;
+      }
+      if (denom == 0) {
+        return;
+      }
+      let t: N32 = lambda * node.lower_bound / n32(denom as f32);
+      for i in 1..self.n {
+        node.pi[i as usize] += t * n32((node.degree[i as usize] - 2) as f32);
+      }
+    }
   }
 }
 //
@@ -139,27 +167,6 @@ impl TSP {
 //    } while (j != 0);
 //  }
 //
-//  private void computeHeldKarp(Node node) {
-//    node.pi = new double[n];
-//    node.lowerBound = Double.MIN_VALUE;
-//    node.degree = new int[n];
-//    node.parent = new int[n];
-//    double lambda = 0.1;
-//    while (lambda > 1e-06) {
-//      double previousLowerBound = node.lowerBound;
-//      computeOneTree(node);
-//      if (!(node.lowerBound < bestNode.lowerBound)) return;
-//      if (!(node.lowerBound < previousLowerBound)) lambda *= 0.9;
-//      int denom = 0;
-//      for (int i = 1; i < n; i++) {
-//        int d = node.degree[i] - 2;
-//        denom += d * d;
-//      }
-//      if (denom == 0) return;
-//      double t = lambda * node.lowerBound / denom;
-//      for (int i = 1; i < n; i++) node.pi[i] += t * (node.degree[i] - 2);
-//    }
-//  }
 //
 //  private void computeOneTree(Node node) {
 //    // compute adjusted costs
