@@ -6,15 +6,73 @@ use std::io::{self, Read};
 
 fn main() {
   println!("Hello, world!");
-  // read the input in TSPLIB format
-  // assume TYPE: TSP, EDGE_WEIGHT_TYPE: EUC_2D
-  // no error checking
-  let mut input = String::new();
-  io::stdin().read_to_string(&mut input);
-  let tsp = TSP::new(input);
+  let berlin = "
+NAME: berlin52
+TYPE: TSP
+COMMENT: 52 locations in Berlin (Groetschel)
+DIMENSION: 52
+EDGE_WEIGHT_TYPE: EUC_2D
+NODE_COORD_SECTION
+1 565.0 575.0
+2 25.0 185.0
+3 345.0 750.0
+4 945.0 685.0
+5 845.0 655.0
+6 880.0 660.0
+7 25.0 230.0
+8 525.0 1000.0
+9 580.0 1175.0
+10 650.0 1130.0
+11 1605.0 620.0 
+12 1220.0 580.0
+13 1465.0 200.0
+14 1530.0 5.0
+15 845.0 680.0
+16 725.0 370.0
+17 145.0 665.0
+18 415.0 635.0
+19 510.0 875.0  
+20 560.0 365.0
+21 300.0 465.0
+22 520.0 585.0
+23 480.0 415.0
+24 835.0 625.0
+25 975.0 580.0
+26 1215.0 245.0
+27 1320.0 315.0
+28 1250.0 400.0
+29 660.0 180.0
+30 410.0 250.0
+31 420.0 555.0
+32 575.0 665.0
+33 1150.0 1160.0
+34 700.0 580.0
+35 685.0 595.0
+36 685.0 610.0
+37 770.0 610.0
+38 795.0 645.0
+39 720.0 635.0
+40 760.0 650.0
+41 475.0 960.0
+42 95.0 260.0
+43 875.0 920.0
+44 700.0 500.0
+45 555.0 815.0
+46 830.0 485.0
+47 1170.0 65.0
+48 830.0 610.0
+49 605.0 625.0
+50 595.0 360.0
+51 1340.0 725.0
+52 1740.0 245.0
+";
+  // let mut input = String::new();
+  // io::stdin().read_to_string(&mut input);
+  let mut tsp = TSP::new(berlin.to_string());
   tsp.solve();
 }
 // simple exact TSP solver based on branch-and-bound/Held--Karp
+#[derive(Debug)]
 struct TSP {
   n: usize,
   x: Vec<N32>,
@@ -23,7 +81,7 @@ struct TSP {
   cost_with_pi: Vec<Vec<N32>>,
   best: Node,
 }
-#[derive(Eq, Default)]
+#[derive(Eq, Default, Debug)]
 struct Node {
   excluded: Vec<Vec<bool>>,
   pi: Vec<N32>,
@@ -146,6 +204,7 @@ impl TSP {
     node.lower_bound = node.lower_bound.round();
   }
   fn solve(&mut self) {
+    println!("{:?}", self);
     self.best.lower_bound = n32(std::f32::MAX);
     let mut currentNode: Node = Default::default();
     currentNode.excluded = vec![vec![false; self.n]; self.n];
@@ -167,12 +226,12 @@ impl TSP {
         if iopt.is_none() {
           if currentNode.lower_bound < self.best.lower_bound {
             self.best = currentNode;
-            // System.err.printf("%.0f", bestNode.lowerBound);
+            println!("{}", self.best.lower_bound)
           }
           break;
         }
         let i = iopt.unwrap();
-        //        System.err.printf(".");
+        println!(".");
         let mut children: BinaryHeap<Node> = BinaryHeap::new();
         let parent_i = currentNode.parent[i];
         children.push(self.exclude(&mut currentNode, i, parent_i));
@@ -216,40 +275,24 @@ impl TSP {
     }
   }
   fn new(input: String) -> TSP {
-    let mut n: usize = 0;
-    let mut cost: Vec<Vec<N32>>;
-    let mut x: Vec<N32>;
-    let mut y: Vec<N32>;
-    let specification = Regex::new(r"\\s*([A-Z_]+)\\s*(:\\s*([0-9]+))?\\s*$").unwrap();
-    //    //Pattern data = Pattern.compile("\\s*([0-9]+)\\s+([-+.0-9Ee]+)\\s+([-+.0-9Ee]+)\\s*");
-    //  for line in input.lines() {
-    for m in specification.captures_iter(&input) {
-      let keyword = &m[1];
-      match keyword {
-        &_ => {}
-        "DIMENSION" => {
-          n = m[3].parse().unwrap();
-          cost = vec![vec![n32(0.0); n]; n]
-        }
-        "NODE_COORD_SECTION" => {
-          x = vec![n32(0.0); n];
-          y = vec![n32(0.0); n];
-          for k in 0..n {
-            //          line = in.readLine();
-            //          m = data.matcher(line);
-            //          m.matches();
-            //          int i = Integer.parseInt(m.group(1)) - 1;
-            //          x[i] = Double.parseDouble(m.group(2));
-            //          y[i] = Double.parseDouble(m.group(3));
-          }
-          //        // TSPLIB distances are rounded to the nearest integer to avoid the sum of square roots problem
-          for i in 0..n {
-            for j in 0..n {
-              let dx = x[i] - x[j];
-              let dy = y[i] - y[j];
-              cost[i][j] = (dx * dx + dy * dy).sqrt().trunc();
-            }
-          }
+    // let dimension_ex = Regex::new(r"DIMENSION: *([0-9]+)").unwrap();
+    println!("Getting the dimension");
+    let n: usize = 52; //dimension_ex.find(&input).unwrap().as_str().parse().unwrap();
+    println!("Got n = {}", n);
+    let mut cost = vec![vec![n32(0.0); n]; n];
+    let mut x = vec![n32(0.0); n];
+    let mut y = vec![n32(0.0); n];
+    let data = Regex::new("^ *([0-9]+) +([-+.0-9Ee]+) +([-+.0-9Ee]+)$").unwrap();
+    for m in data.captures_iter(&input) {
+      let i = m[0].parse::<usize>().unwrap() - 1;
+      x[i] = n32(m[2].parse::<f32>().unwrap());
+      y[i] = n32(m[3].parse::<f32>().unwrap());
+      // TSPLIB distances are rounded to the nearest integer to avoid the sum of square roots problem
+      for i in 0..n {
+        for j in 0..n {
+          let dx = x[i] - x[j];
+          let dy = y[i] - y[j];
+          cost[i][j] = (dx * dx + dy * dy).sqrt().trunc();
         }
       }
     }
