@@ -1,14 +1,17 @@
 use noisy_float::prelude::*;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
+use std::io::{self, Read};
 
 fn main() {
   println!("Hello, world!");
   // read the input in TSPLIB format
   // assume TYPE: TSP, EDGE_WEIGHT_TYPE: EUC_2D
   // no error checking
-  //TSP tsp = new TSP();
-  //tsp.readInput(new InputStreamReader(System.in));
-  //tsp.solve();
+  let mut input = String::new();
+  io::stdin().read_to_string(&mut input)?;
+  let tsp = TSP::new(input);
+  tsp.solve();
 }
 // simple exact TSP solver based on branch-and-bound/Held--Karp
 struct TSP {
@@ -49,22 +52,22 @@ impl TSP {
     node.degree[i] += 1;
     node.degree[j] += 1;
   }
-  fn exclude(node: Node, i: usize, j: usize) -> Node {
+  fn exclude(&self, node: &mut Node, i: usize, j: usize) -> Node {
     let mut child: Node = Default::default();
     child.excluded = node.excluded.clone();
     child.excluded[i] = node.excluded[i].clone();
     child.excluded[j] = node.excluded[j].clone();
     child.excluded[i][j] = true;
     child.excluded[j][i] = true;
-    //    computeHeldKarp(child);
+    self.computeHeldKarp(&mut child);
     child
   }
   fn computeHeldKarp(&self, node: &mut Node) {
     node.lower_bound = n32(std::f32::MIN);
-    //    node.degree = new int[n];
-    //    node.parent = new int[n];
+    node.degree = vec![0; self.n];
+    node.parent = vec![0; self.n];
     let mut lambda = n32(0.1);
-    while (lambda > 1e-06) {
+    while lambda > 1e-06 {
       let previous_lower = node.lower_bound;
       //      computeOneTree(node);
       if !(node.lower_bound < self.best.lower_bound) {
@@ -141,12 +144,81 @@ impl TSP {
     node.parent[0] = second_neighbor;
     node.lower_bound = node.lower_bound.round();
   }
-}
-//
-// fn (*TSP) readInput(Reader r) {
+  fn solve(&mut self) {
+    self.best.lower_bound = n32(std::f32::MAX);
+    let mut currentNode: Node = Default::default();
+    currentNode.excluded = vec![vec![false; self.n]; self.n];
+    //  self.cost_with_pi = new double[n][n];
+    self.computeHeldKarp(&mut currentNode);
+    let mut pq = BinaryHeap::new();
+
+    //  PriorityQueue<Node> pq = new PriorityQueue<Node>(11, new NodeComparator());
+    loop {
+      loop {
+        let mut iopt: Option<usize> = None;
+        for j in 0..self.n {
+          if currentNode.degree[j] > 2
+            && (iopt.is_none() || currentNode.degree[j] < currentNode.degree[iopt.unwrap()])
+          {
+            iopt = Some(j);
+          }
+        }
+        if iopt.is_none() {
+          if currentNode.lower_bound < self.best.lower_bound {
+            self.best = currentNode;
+            // System.err.printf("%.0f", bestNode.lowerBound);
+          }
+          break;
+        }
+        let i = iopt.unwrap();
+        //        System.err.printf(".");
+        let mut children: BinaryHeap<Node> = BinaryHeap::new();
+        let parent_i = currentNode.parent[i];
+        children.push(self.exclude(&mut currentNode, i, parent_i));
+        for j in 0..self.n {
+          if currentNode.parent[j] == i {
+            children.push(self.exclude(&mut currentNode, i, j));
+          }
+        }
+        currentNode = children.pop().unwrap();
+        pq.append(&mut children);
+        if currentNode.lower_bound >= self.best.lower_bound {
+          break;
+        }
+      }
+      //      System.err.printf("%n");
+      let new_current = pq.pop(); //dont unwrap, break on empty;
+      if new_current.is_none() {
+        break;
+      }
+      currentNode = new_current.unwrap();
+      if currentNode.lower_bound >= self.best.lower_bound {
+        break;
+      }
+    }
+    // output suitable for gnuplot
+    //    System.out.printf("# %.0f%n", bestNode.lowerBound);
+    let mut j = 0;
+    loop {
+      let i = self.best.parent[j];
+      print!(
+        "{}\t{}\t{}\t{}%n",
+        self.x[j],
+        self.y[j],
+        self.x[i] - self.x[j],
+        self.y[i] - self.y[j]
+      );
+      j = i;
+      if j == 0 {
+        break;
+      }
+    }
+  }
+fn new(input: String) -> Self {
+  let mut new = TS
 //    //Pattern specification = Pattern.compile("\\s*([A-Z_]+)\\s*(:\\s*([0-9]+))?\\s*");
 //    //Pattern data = Pattern.compile("\\s*([0-9]+)\\s+([-+.0-9Ee]+)\\s+([-+.0-9Ee]+)\\s*");
-//    let String line ="";
+   for line in input.lines() {
 //    while ((line = in.readLine()) != null) {
 //      Matcher m = specification.matcher(line);
 //      if (!m.matches()) continue;
@@ -175,51 +247,6 @@ impl TSP {
 //        }
 //      }
 //    }
-//  }
-//
-//  public void solve() {
-//    bestNode.lowerBound = Double.MAX_VALUE;
-//    Node currentNode = new Node();
-//    currentNode.excluded = new boolean[n][n];
-//    cost_with_pi = new double[n][n];
-//    computeHeldKarp(currentNode);
-//    PriorityQueue<Node> pq = new PriorityQueue<Node>(11, new NodeComparator());
-//    do {
-//      do {
-//        boolean isTour = true;
-//        int i = -1;
-//        for (int j = 0; j < n; j++) {
-//          if (currentNode.degree[j] > 2 && (i < 0 || currentNode.degree[j] < currentNode.degree[i])) i = j;
-//        }
-//        if (i < 0) {
-//          if (currentNode.lowerBound < bestNode.lowerBound) {
-//            bestNode = currentNode;
-//            System.err.printf("%.0f", bestNode.lowerBound);
-//          }
-//          break;
-//        }
-//        System.err.printf(".");
-//        PriorityQueue<Node> children = new PriorityQueue<Node>(11, new NodeComparator());
-//        children.add(exclude(currentNode, i, currentNode.parent[i]));
-//        for (int j = 0; j < n; j++) {
-//          if (currentNode.parent[j] == i) children.add(exclude(currentNode, i, j));
-//        }
-//        currentNode = children.poll();
-//        pq.addAll(children);
-//      } while (currentNode.lowerBound < bestNode.lowerBound);
-//      System.err.printf("%n");
-//      currentNode = pq.poll();
-//    } while (currentNode != null && currentNode.lowerBound < bestNode.lowerBound);
-//    // output suitable for gnuplot
-//    // set style data vector
-//    System.out.printf("# %.0f%n", bestNode.lowerBound);
-//    int j = 0;
-//    do {
-//      int i = bestNode.parent[j];
-//      System.out.printf("%f\t%f\t%f\t%f%n", x[j], y[j], x[i] - x[j], y[i] - y[j]);
-//      j = i;
-//    } while (j != 0);
-//  }
-//
-//
-//
+ }
+
+}
