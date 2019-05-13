@@ -12,11 +12,11 @@ fn main() {
 }
 // simple exact TSP solver based on branch-and-bound/Held--Karp
 struct TSP {
-  n: i32,
-  x: Vec<f32>,
-  y: Vec<f32>,
-  cost: Vec<Vec<f32>>,
-  cost_with_pi: Vec<Vec<f32>>,
+  n: usize,
+  x: Vec<N32>,
+  y: Vec<N32>,
+  cost: Vec<Vec<N32>>,
+  cost_with_pi: Vec<Vec<N32>>,
   best: Node,
 }
 #[derive(Eq, Default)]
@@ -24,8 +24,8 @@ struct Node {
   excluded: Vec<Vec<bool>>,
   pi: Vec<N32>,
   lower_bound: N32,
-  degree: Vec<i32>,
-  parent: Vec<i32>,
+  degree: Vec<usize>,
+  parent: Vec<usize>,
 }
 
 impl Ord for Node {
@@ -73,12 +73,12 @@ impl TSP {
       if !(node.lower_bound < previous_lower) {
         lambda *= 0.9;
       }
-      let mut denom: i32 = 0;
+      let mut denom = 0;
       for i in 1..self.n {
         let degree = node.degree[i as usize];
         denom += (degree - 2) ^ 2;
       }
-      if (denom == 0) {
+      if denom == 0 {
         return;
       }
       let t: N32 = lambda * node.lower_bound / n32(denom as f32);
@@ -86,6 +86,60 @@ impl TSP {
         node.pi[i as usize] += t * n32((node.degree[i as usize] - 2) as f32);
       }
     }
+  }
+  fn computeOneTree(&mut self, node: &mut Node) {
+    node.lower_bound = n32(0.0);
+    node.degree = vec![0; self.n];
+    for i in 0..self.n {
+      for j in 0..self.n {
+        self.cost_with_pi[i][j] = if node.excluded[i][j] {
+          n32(std::f32::MAX)
+        } else {
+          self.cost[i][j] + node.pi[i] + node.pi[j]
+        }
+      }
+    }
+    // find the two cheapest edges from 0
+    let (mut first_neighbor, mut second_neighbor) =
+      if self.cost_with_pi[0][2] < self.cost_with_pi[0][1] {
+        (2, 1)
+      } else {
+        (1, 2)
+      };
+    for j in 3..self.n {
+      let j_cost = self.cost_with_pi[0][j];
+      if j_cost < self.cost_with_pi[0][second_neighbor] {
+        if j_cost < self.cost_with_pi[0][first_neighbor] {
+          second_neighbor = first_neighbor;
+          first_neighbor = j;
+        } else {
+          second_neighbor = j;
+        }
+      }
+    }
+    self.addEdge(node, 0, first_neighbor);
+    node.parent = vec![self.n, first_neighbor];
+    node.parent[first_neighbor] = 0;
+    // compute the minimum spanning tree on nodes 1..n-1
+    let mut min_cost = self.cost_with_pi[first_neighbor].clone();
+    for _k in 2..self.n {
+      let mut i = node.degree.iter().position(|&degree| degree == 0).unwrap();
+      for j in (i + 1)..self.n {
+        if node.degree[j] == 0 && min_cost[j] < min_cost[i] {
+          i = j;
+        }
+      }
+      self.addEdge(node, node.parent[i], i);
+      for j in 1..self.n {
+        if node.degree[j] == 0 && self.cost_with_pi[i][j] < min_cost[j] {
+          min_cost[j] = self.cost_with_pi[i][j];
+          node.parent[j] = i;
+        }
+      }
+    }
+    self.addEdge(node, 0, second_neighbor);
+    node.parent[0] = second_neighbor;
+    node.lower_bound = node.lower_bound.round();
   }
 }
 //
@@ -127,7 +181,7 @@ impl TSP {
 //    bestNode.lowerBound = Double.MAX_VALUE;
 //    Node currentNode = new Node();
 //    currentNode.excluded = new boolean[n][n];
-//    costWithPi = new double[n][n];
+//    cost_with_pi = new double[n][n];
 //    computeHeldKarp(currentNode);
 //    PriorityQueue<Node> pq = new PriorityQueue<Node>(11, new NodeComparator());
 //    do {
@@ -168,57 +222,4 @@ impl TSP {
 //  }
 //
 //
-//  private void computeOneTree(Node node) {
-//    // compute adjusted costs
-//    node.lowerBound = 0.0;
-//    Arrays.fill(node.degree, 0);
-//    for (int i = 0; i < n; i++) {
-//      for (int j = 0; j < n; j++) costWithPi[i][j] = node.excluded[i][j] ? Double.MAX_VALUE : cost[i][j] + node.pi[i] + node.pi[j];
-//    }
-//    int firstNeighbor;
-//    int secondNeighbor;
-//    // find the two cheapest edges from 0
-//    if (costWithPi[0][2] < costWithPi[0][1]) {
-//      firstNeighbor = 2;
-//      secondNeighbor = 1;
-//    } else {
-//      firstNeighbor = 1;
-//      secondNeighbor = 2;
-//    }
-//    for (int j = 3; j < n; j++) {
-//      if (costWithPi[0][j] < costWithPi[0][secondNeighbor]) {
-//        if (costWithPi[0][j] < costWithPi[0][firstNeighbor]) {
-//          secondNeighbor = firstNeighbor;
-//          firstNeighbor = j;
-//        } else {
-//          secondNeighbor = j;
-//        }
-//      }
-//    }
-//    addEdge(node, 0, firstNeighbor);
-//    Arrays.fill(node.parent, firstNeighbor);
-//    node.parent[firstNeighbor] = 0;
-//    // compute the minimum spanning tree on nodes 1..n-1
-//    double[] minCost = costWithPi[firstNeighbor].clone();
-//    for (int k = 2; k < n; k++) {
-//      int i;
-//      for (i = 1; i < n; i++) {
-//        if (node.degree[i] == 0) break;
-//      }
-//      for (int j = i + 1; j < n; j++) {
-//        if (node.degree[j] == 0 && minCost[j] < minCost[i]) i = j;
-//      }
-//      addEdge(node, node.parent[i], i);
-//      for (int j = 1; j < n; j++) {
-//        if (node.degree[j] == 0 && costWithPi[i][j] < minCost[j]) {
-//          minCost[j] = costWithPi[i][j];
-//          node.parent[j] = i;
-//        }
-//      }
-//    }
-//    addEdge(node, 0, secondNeighbor);
-//    node.parent[0] = secondNeighbor;
-//    node.lowerBound = Math.rint(node.lowerBound);
-//  }
-//}
 //
