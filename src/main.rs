@@ -1,4 +1,5 @@
 use noisy_float::prelude::*;
+use regex::Regex;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::io::{self, Read};
@@ -9,7 +10,7 @@ fn main() {
   // assume TYPE: TSP, EDGE_WEIGHT_TYPE: EUC_2D
   // no error checking
   let mut input = String::new();
-  io::stdin().read_to_string(&mut input)?;
+  io::stdin().read_to_string(&mut input);
   let tsp = TSP::new(input);
   tsp.solve();
 }
@@ -214,39 +215,51 @@ impl TSP {
       }
     }
   }
-fn new(input: String) -> Self {
-  let mut new = TS
-//    //Pattern specification = Pattern.compile("\\s*([A-Z_]+)\\s*(:\\s*([0-9]+))?\\s*");
-//    //Pattern data = Pattern.compile("\\s*([0-9]+)\\s+([-+.0-9Ee]+)\\s+([-+.0-9Ee]+)\\s*");
-   for line in input.lines() {
-//    while ((line = in.readLine()) != null) {
-//      Matcher m = specification.matcher(line);
-//      if (!m.matches()) continue;
-//      String keyword = m.group(1);
-//      if (keyword.equals("DIMENSION")) {
-//        n = Integer.parseInt(m.group(3));
-//        cost = new double[n][n];
-//      } else if (keyword.equals("NODE_COORD_SECTION")) {
-//        x = new double[n];
-//        y = new double[n];
-//        for (int k = 0; k < n; k++) {
-//          line = in.readLine();
-//          m = data.matcher(line);
-//          m.matches();
-//          int i = Integer.parseInt(m.group(1)) - 1;
-//          x[i] = Double.parseDouble(m.group(2));
-//          y[i] = Double.parseDouble(m.group(3));
-//        }
-//        // TSPLIB distances are rounded to the nearest integer to avoid the sum of square roots problem
-//        for (int i = 0; i < n; i++) {
-//          for (int j = 0; j < n; j++) {
-//            double dx = x[i] - x[j];
-//            double dy = y[i] - y[j];
-//            cost[i][j] = Math.rint(Math.sqrt(dx * dx + dy * dy));
-//          }
-//        }
-//      }
-//    }
- }
-
+  fn new(input: String) -> TSP {
+    let mut n: usize = 0;
+    let mut cost: Vec<Vec<N32>>;
+    let mut x: Vec<N32>;
+    let mut y: Vec<N32>;
+    let specification = Regex::new(r"\\s*([A-Z_]+)\\s*(:\\s*([0-9]+))?\\s*$").unwrap();
+    //    //Pattern data = Pattern.compile("\\s*([0-9]+)\\s+([-+.0-9Ee]+)\\s+([-+.0-9Ee]+)\\s*");
+    //  for line in input.lines() {
+    for m in specification.captures_iter(&input) {
+      let keyword = &m[1];
+      match keyword {
+        &_ => {}
+        "DIMENSION" => {
+          n = m[3].parse().unwrap();
+          cost = vec![vec![n32(0.0); n]; n]
+        }
+        "NODE_COORD_SECTION" => {
+          x = vec![n32(0.0); n];
+          y = vec![n32(0.0); n];
+          for k in 0..n {
+            //          line = in.readLine();
+            //          m = data.matcher(line);
+            //          m.matches();
+            //          int i = Integer.parseInt(m.group(1)) - 1;
+            //          x[i] = Double.parseDouble(m.group(2));
+            //          y[i] = Double.parseDouble(m.group(3));
+          }
+          //        // TSPLIB distances are rounded to the nearest integer to avoid the sum of square roots problem
+          for i in 0..n {
+            for j in 0..n {
+              let dx = x[i] - x[j];
+              let dy = y[i] - y[j];
+              cost[i][j] = (dx * dx + dy * dy).sqrt().trunc();
+            }
+          }
+        }
+      }
+    }
+    TSP {
+      n,
+      x,
+      y,
+      cost,
+      cost_with_pi: vec![vec![n32(0.0); n]; n],
+      best: Default::default(),
+    }
+  }
 }
