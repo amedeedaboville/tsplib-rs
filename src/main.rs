@@ -19,7 +19,7 @@ struct TSP {
   cost_with_pi: Vec<Vec<f32>>,
   // bestNode : Node
 }
-#[derive(Eq)]
+#[derive(Eq, Default)]
 struct Node {
   excluded: Vec<Vec<bool>>,
   pi: Vec<N32>,
@@ -48,6 +48,16 @@ impl TSP {
     node.lower_bound += self.cost_with_pi[i][j];
     node.degree[i] += 1;
     node.degree[j] += 1;
+  }
+  fn exclude(node: Node, i: usize, j: usize) -> Node {
+    let mut child: Node = Default::default();
+    child.excluded = node.excluded.clone();
+    child.excluded[i] = node.excluded[i].clone();
+    child.excluded[j] = node.excluded[j].clone();
+    child.excluded[i][j] = true;
+    child.excluded[j][i] = true;
+    //    computeHeldKarp(child);
+    child
   }
 }
 //
@@ -127,17 +137,6 @@ impl TSP {
 //      System.out.printf("%f\t%f\t%f\t%f%n", x[j], y[j], x[i] - x[j], y[i] - y[j]);
 //      j = i;
 //    } while (j != 0);
-//  }
-//
-//  private Node exclude(Node node, int i, int j) {
-//    Node child = new Node();
-//    child.excluded = node.excluded.clone();
-//    child.excluded[i] = node.excluded[i].clone();
-//    child.excluded[j] = node.excluded[j].clone();
-//    child.excluded[i][j] = true;
-//    child.excluded[j][i] = true;
-//    computeHeldKarp(child);
-//    return child;
 //  }
 //
 //  private void computeHeldKarp(Node node) {
