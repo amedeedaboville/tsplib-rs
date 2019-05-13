@@ -19,11 +19,11 @@ struct TSP {
   cost_with_pi: Vec<Vec<f32>>,
   // bestNode : Node
 }
+#[derive(Eq)]
 struct Node {
   excluded: Vec<Vec<bool>>,
-  //  // Held--Karp solution
-  pi: Vec<f32>,
-  lower_bound: n32,
+  pi: Vec<N32>,
+  lower_bound: N32,
   degree: Vec<i32>,
   parent: Vec<i32>,
 }
@@ -31,6 +31,16 @@ struct Node {
 impl Ord for Node {
   fn cmp(&self, other: &Node) -> Ordering {
     self.lower_bound.cmp(&other.lower_bound)
+  }
+}
+impl PartialEq for Node {
+  fn eq(&self, other: &Self) -> bool {
+    self.lower_bound == other.lower_bound
+  }
+}
+impl PartialOrd for Node {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
   }
 }
 //
