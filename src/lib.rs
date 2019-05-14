@@ -82,3 +82,15 @@ fn test_type() {
     assert_eq!(get_type("TYPE: CVRP"), Ok(("", ProblemType::CVRP)));
     assert_eq!(get_type("TYPE: TOUR"), Ok(("", ProblemType::TOUR)));
 }
+
+named!(get_dimension<&str, i64>,
+    map_res!(call!(kv, "DIMENSION"), str::parse::<i64>)
+);
+#[test]
+fn test_dimension() {
+    let dimension = 8;
+    assert_eq!(
+        get_dimension(&format!("DIMENSION: {}", dimension)),
+        Ok(("", dimension))
+    );
+}
