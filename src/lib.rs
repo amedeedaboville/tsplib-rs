@@ -5,6 +5,9 @@ use nom::*;
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
+use std::cmp::{Eq, PartialEq};
+use std::fmt::{Debug, Display};
+use std::result::Result;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Coord {
@@ -50,12 +53,24 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
         (value)
 )
 );
-named!(name<&str,&str>,
+
+fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
+    kvfunc: fn(&str) -> Result<(&str, G), Err<&str>>,
+    key: &str,
+    value: G,
+) {
+    let input = format!("{}: {}", key, value);
+    let output = kvfunc(&input);
+    assert_eq!(output, Ok(("", value)));
+}
+
+named!(get_name<&str,&str>,
     call!(kv, "NAME")
 );
 #[test]
-fn name_test() {
-    assert_eq!(name("NAME: some_name45"), Ok(("", "some_name45")));
+fn test_name() {
+    assert_eq!(get_name("NAME: some_name45"), Ok(("", "some_name45")));
+    // test_kv(get_name, "NAME", "some_name");
 }
 named!(get_comment<&str,&str>,
     call!(kv, "COMMENT")
@@ -88,9 +103,14 @@ named!(get_dimension<&str, i64>,
 );
 #[test]
 fn test_dimension() {
-    let dimension = 8;
-    assert_eq!(
-        get_dimension(&format!("DIMENSION: {}", dimension)),
-        Ok(("", dimension))
-    );
+    test_kv(get_dimension, "DIMENSION", 8)
+}
+
+named!(get_capacity<&str, i64>,
+    map_res!(call!(kv, "CAPACITY"), str::parse)
+);
+
+#[test]
+fn test_capacity() {
+    test_kv(get_capacity, "CAPACITY", 8)
 }
