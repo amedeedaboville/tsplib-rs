@@ -32,6 +32,22 @@ enum ProblemType {
     CVRP,
     TOUR,
 }
+#[derive(Debug, PartialEq, Eq, EnumString)]
+enum EdgeWeighType {
+    EXPLICIT,
+    EUC_2D,
+    EUC_3D,
+    MAX_2D,
+    MAX_3D,
+    MAN_2D,
+    MAN_3D,
+    CEIL_2D,
+    GEO,
+    ATT,
+    XRAY1,
+    XRAY2,
+    SPECIAL,
+}
 
 // named!(node_coords_section<&str,&Vec<Coord>,
 //    chain!(
@@ -113,4 +129,16 @@ named!(get_capacity<&str, i64>,
 #[test]
 fn test_capacity() {
     test_kv(get_capacity, "CAPACITY", 8)
+}
+
+named!(get_edge_weight_type<&str, EdgeWeighType>,
+    map_res!(call!(kv, "EDGE_WEIGHT_TYPE"), str::parse)
+);
+
+#[test]
+fn test_edge_weight_type() {
+    assert_eq!(
+        get_edge_weight_type("EDGE_WEIGHT_TYPE: EUC_2D"),
+        Ok(("", EdgeWeighType::EUC_2D))
+    );
 }
