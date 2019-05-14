@@ -56,7 +56,17 @@ named!(name<&str,&str>,
 #[test]
 fn name_test() {
     assert_eq!(name("NAME: some_name45"), Ok(("", "some_name45")));
-    assert_eq!(kv("NAME: some_name45", "NAME"), Ok(("", "some_name45")))
+}
+named!(get_comment<&str,&str>,
+    call!(kv, "COMMENT")
+);
+#[test]
+fn test_comment() {
+    let comment = "My favorite TSP instance: Minimum tour around all of my friend's fridges";
+    assert_eq!(
+        get_comment(&format!("COMMENT: {}", comment)),
+        Ok(("", comment))
+    );
 }
 
 named!(get_type<&str, ProblemType>,
