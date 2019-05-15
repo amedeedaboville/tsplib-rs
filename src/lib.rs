@@ -21,7 +21,6 @@ struct TSPLProblem {
     coords: Vec<Coord>,
     name: String,
     comment: String,
-    edge_weights: Vec<N32>,
     problem_type: ProblemType,
     edge_weight_type: EdgeWeightType,
 }
@@ -59,17 +58,6 @@ enum EdgeWeightType {
     XRAY2,
     SPECIAL,
 }
-
-// named!(node_coords_section<&str,&Vec<Coord>,
-//    chain!(
-//     tag_s!("NODE_COORD_SECTION\n") ~
-//     many1(node_coords)
-//    )
-// );
-// named!(node_coords<&str,&Coord>,
-//     i, x, y = chain!(number!(), float!(), float!());
-//     Coord { i , x, y}
-// );
 
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
@@ -155,21 +143,21 @@ fn test_edge_weight_type() {
     )
 }
 
-named!(parse_problem<&str, Problem>,
+named!(parse_problem<&str, TSPLProblem>,
     do_parse!(
         name: opt!(get_name) >>
         ptype: opt!(get_type) >>
         comment: opt!(get_comment) >>
         dimension: opt!(get_dimension) >>
         ewt: opt!(get_edge_weight_type) >>
-        (Problem {
+        (TSPLProblem {
             name:name.unwrap_or("").to_string(),
             problem_type:ptype.unwrap(),
             comment: comment.unwrap_or("").to_string(),
             dimension:dimension.unwrap(),
             edge_weight_type:ewt.unwrap_or(EdgeWeightType::EUC_2D),
-            edge_weights: Vec::new(),
-            coords: Vec::new()  })
+            coords: Vec::new(),
+        })
     )
 );
 
