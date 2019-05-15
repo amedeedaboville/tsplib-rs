@@ -21,9 +21,10 @@ struct Problem {
     coords: Vec<Coord>,
     comment: String,
     edge_weights: String,
+    edge_weight_type: EdgeWeightType,
 }
 
-#[derive(Debug, PartialEq, Eq, EnumString)]
+#[derive(Debug, PartialEq, Eq, Clone, EnumString)]
 enum ProblemType {
     TSP,
     ATSP,
@@ -32,8 +33,9 @@ enum ProblemType {
     CVRP,
     TOUR,
 }
-#[derive(Debug, PartialEq, Eq, EnumString)]
-enum EdgeWeighType {
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
+enum EdgeWeightType {
     EXPLICIT,
     EUC_2D,
     EUC_3D,
@@ -131,14 +133,15 @@ fn test_capacity() {
     test_kv(get_capacity, "CAPACITY", 8)
 }
 
-named!(get_edge_weight_type<&str, EdgeWeighType>,
+named!(get_edge_weight_type<&str, EdgeWeightType>,
     map_res!(call!(kv, "EDGE_WEIGHT_TYPE"), str::parse)
 );
 
 #[test]
 fn test_edge_weight_type() {
-    assert_eq!(
-        get_edge_weight_type("EDGE_WEIGHT_TYPE: EUC_2D"),
-        Ok(("", EdgeWeighType::EUC_2D))
-    );
+    test_kv(
+        get_edge_weight_type,
+        "EDGE_WEIGHT_TYPE",
+        EdgeWeightType::EUC_2D,
+    )
 }
