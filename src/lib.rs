@@ -11,11 +11,8 @@ use std::result::Result;
 use strum::IntoEnumIterator;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Coord {
-    i: usize,
-    x: N32,
-    y: N32,
-}
+struct Coord(i32, N32, N32);
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLProblem {
     dimension: i64,
