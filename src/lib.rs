@@ -161,6 +161,24 @@ named!(parse_problem<&str, TSPLProblem>,
     )
 );
 
+#[test]
+fn test_parse_problem() {
+    let header = "NAME: berlin52
+TYPE: TSP
+COMMENT: 52 locations in Berlin (Groetschel)
+DIMENSION: 52
+EDGE_WEIGHT_TYPE: EUC_2D
+";
+    let parsed = TSPLProblem {
+        name: "berlin52".to_string(),
+        problem_type: ProblemType::TSP,
+        comment: "52 locations in Berlin (Groetschel)".to_string(),
+        dimension: 52,
+        edge_weight_type: EdgeWeightType::EUC_2D,
+        coords: Vec::new(),
+    };
+    assert_eq!(parse_problem(header), Ok(("", parsed)))
+}
 // fn build_problem(headerInfo: Vec<ProblemMeta>) -> Problem {
 //     use ProblemMeta::*;
 //     let mut p: Problem = Default::default();
