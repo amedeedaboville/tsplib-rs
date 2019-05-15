@@ -64,9 +64,10 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
         tag_s!(key) >>
         tag_s!(":") >>
         space0 >>
-        value: rest >>
+        value: not_line_ending >>
+        line_ending >>
         (value)
-)
+    )
 );
 
 fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
