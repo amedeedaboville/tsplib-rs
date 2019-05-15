@@ -5,7 +5,7 @@ use nom::*;
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
-use std::cmp::{Eq, PartialEq};
+use std::cmp::PartialEq;
 use std::fmt::{Debug, Display};
 use std::result::Result;
 use strum::IntoEnumIterator;
@@ -154,6 +154,48 @@ named!(parse_problem<&str, TSPLProblem>,
     )
 );
 
+named!(get_2d_coord<&str, Coord>,
+    do_parse!(
+        opt!(multispace) >>
+         i: digit >>
+            space >>
+         x: float >>
+            space >>
+         y: float >>
+         line_ending >>
+         (Coord( i.parse().unwrap(), n32(x), n32(y))))
+);
+
+#[test]
+fn test_2d_coords() {
+    let input = " 1 1.0 3.0\n";
+    assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
+}
+named!(node_data_section<&str, Vec<Coord> >,
+    do_parse!(
+        tag_s!("NODE_COORD_SECTION") >>
+        line_ending >>
+        coords: many1!(get_2d_coord) >>
+        opt!(complete!(tag_s!("EOF\n"))) >>
+        (coords)
+    )
+);
+
+#[test]
+fn test_node_data_section() {
+    let ncs = "NODE_COORD_SECTION
+1 565.0 575.0
+2 25.0 185.0
+3 345.0 750.0
+EOF
+";
+    let out = vec![
+        Coord(1, n32(565.0), n32(575.0)),
+        Coord(2, n32(25.0), n32(185.0)),
+        Coord(3, n32(345.0), n32(750.0)),
+    ];
+    assert_eq!(node_data_section(ncs), Ok(("", out)))
+}
 #[test]
 fn test_parse_problem() {
     let header = "NAME: berlin52
@@ -183,5 +225,4 @@ EDGE_WEIGHT_TYPE: EUC_2D
 //             Dimension(d) => p.dimension = d,
 //             EWT(ewt) => p.edge_weight_type = ewt,
 //         };
-//     }
-//     p
+//
