@@ -17,10 +17,12 @@ struct Coord {
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Problem {
-    n: usize,
+    dimension: i64,
     coords: Vec<Coord>,
+    name: String,
     comment: String,
-    edge_weights: String,
+    edge_weights: Vec<N32>,
+    problem_type: ProblemType,
     edge_weight_type: EdgeWeightType,
 }
 
@@ -145,3 +147,21 @@ fn test_edge_weight_type() {
         EdgeWeightType::EUC_2D,
     )
 }
+
+named!(parse_problem<&str, Problem>,
+    do_parse!(
+        name: opt!(get_name) >>
+        ptype: opt!(get_type) >>
+        comment: opt!(get_comment) >>
+        dimension: opt!(get_dimension) >>
+        ewt: opt!(get_edge_weight_type) >>
+        (Problem {
+            name:name.unwrap_or("").to_string(),
+            problem_type:ptype.unwrap(),
+            comment: comment.unwrap_or("").to_string(),
+            dimension:dimension.unwrap(),
+            edge_weight_type:ewt.unwrap_or(EdgeWeightType::EUC_2D),
+            edge_weights: Vec::new(),
+            coords: Vec::new()  })
+    )
+);
