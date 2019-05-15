@@ -8,6 +8,7 @@ extern crate strum_macros;
 use std::cmp::{Eq, PartialEq};
 use std::fmt::{Debug, Display};
 use std::result::Result;
+use strum::IntoEnumIterator;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Coord {
@@ -32,7 +33,7 @@ struct TSPLProblem {
 //     Dimension(i64),
 //     EWT(EdgeWeightType),
 // }
-#[derive(Debug, PartialEq, Eq, Clone, EnumString)]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 enum ProblemType {
     TSP,
     ATSP,
@@ -42,7 +43,7 @@ enum ProblemType {
     TOUR,
 }
 #[allow(non_camel_case_types)]
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 enum EdgeWeightType {
     EXPLICIT,
     EUC_2D,
@@ -75,7 +76,7 @@ fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
     key: &str,
     value: G,
 ) {
-    let input = format!("{}: {}", key, value);
+    let input = format!("{}: {}\n", key, value);
     let output = kvfunc(&input);
     assert_eq!(output, Ok(("", value)));
 }
@@ -85,8 +86,7 @@ named!(get_name<&str,&str>,
 );
 #[test]
 fn test_name() {
-    assert_eq!(get_name("NAME: some_name45"), Ok(("", "some_name45")));
-    // test_kv(get_name, "NAME", "some_name");
+    assert_eq!(get_name("NAME: some_name45\n"), Ok(("", "some_name45")));
 }
 named!(get_comment<&str,&str>,
     call!(kv, "COMMENT")
@@ -95,7 +95,7 @@ named!(get_comment<&str,&str>,
 fn test_comment() {
     let comment = "My favorite TSP instance: Minimum tour around all of my friend's fridges";
     assert_eq!(
-        get_comment(&format!("COMMENT: {}", comment)),
+        get_comment(&format!("COMMENT: {}\n", comment)),
         Ok(("", comment))
     );
 }
@@ -106,12 +106,9 @@ named!(get_type<&str, ProblemType>,
 
 #[test]
 fn test_type() {
-    assert_eq!(get_type("TYPE: TSP"), Ok(("", ProblemType::TSP)));
-    assert_eq!(get_type("TYPE: ATSP"), Ok(("", ProblemType::ATSP)));
-    assert_eq!(get_type("TYPE: SOP"), Ok(("", ProblemType::SOP)));
-    assert_eq!(get_type("TYPE: HCP"), Ok(("", ProblemType::HCP)));
-    assert_eq!(get_type("TYPE: CVRP"), Ok(("", ProblemType::CVRP)));
-    assert_eq!(get_type("TYPE: TOUR"), Ok(("", ProblemType::TOUR)));
+    for ptype in ProblemType::iter() {
+        test_kv(get_type, "TYPE", ptype);
+    }
 }
 
 named!(get_dimension<&str, i64>,
@@ -137,11 +134,9 @@ named!(get_edge_weight_type<&str, EdgeWeightType>,
 
 #[test]
 fn test_edge_weight_type() {
-    test_kv(
-        get_edge_weight_type,
-        "EDGE_WEIGHT_TYPE",
-        EdgeWeightType::EUC_2D,
-    )
+    for ewt in EdgeWeightType::iter() {
+        test_kv(get_edge_weight_type, "EDGE_WEIGHT_TYPE", ewt);
+    }
 }
 
 named!(parse_problem<&str, TSPLProblem>,
