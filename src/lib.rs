@@ -16,7 +16,7 @@ struct Coord {
     y: N32,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Problem {
+struct TSPLProblem {
     dimension: i64,
     coords: Vec<Coord>,
     name: String,
@@ -26,6 +26,13 @@ struct Problem {
     edge_weight_type: EdgeWeightType,
 }
 
+// enum ProblemMeta {
+//     Name(String),
+//     Type(ProblemType),
+//     Comment(String),
+//     Dimension(i64),
+//     EWT(EdgeWeightType),
+// }
 #[derive(Debug, PartialEq, Eq, Clone, EnumString)]
 enum ProblemType {
     TSP,
@@ -165,3 +172,17 @@ named!(parse_problem<&str, Problem>,
             coords: Vec::new()  })
     )
 );
+
+// fn build_problem(headerInfo: Vec<ProblemMeta>) -> Problem {
+//     use ProblemMeta::*;
+//     let mut p: Problem = Default::default();
+//     for meta in headerInfo.into_iter() {
+//         match meta {
+//             Name(n) => p.name = n,
+//             Type(pt) => p.problem_type = pt,
+//             Comment(c) => p.comment = c,
+//             Dimension(d) => p.dimension = d,
+//             EWT(ewt) => p.edge_weight_type = ewt,
+//         };
+//     }
+//     p
