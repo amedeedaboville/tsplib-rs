@@ -171,7 +171,7 @@ fn test_2d_coords() {
     let input = " 1 1.0 3.0\n";
     assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
 }
-named!(node_data_section<&str, Vec<Coord> >,
+named!(node_coord_section<&str, Vec<Coord> >,
     do_parse!(
         tag_s!("NODE_COORD_SECTION") >>
         line_ending >>
@@ -182,7 +182,7 @@ named!(node_data_section<&str, Vec<Coord> >,
 );
 
 #[test]
-fn test_node_data_section() {
+fn test_node_coord_section() {
     let ncs = "NODE_COORD_SECTION
 1 565.0 575.0
 2 25.0 185.0
@@ -194,7 +194,7 @@ EOF
         Coord(2, n32(25.0), n32(185.0)),
         Coord(3, n32(345.0), n32(750.0)),
     ];
-    assert_eq!(node_data_section(ncs), Ok(("", out)))
+    assert_eq!(node_coord_section(ncs), Ok(("", out)))
 }
 #[test]
 fn test_parse_problem() {
