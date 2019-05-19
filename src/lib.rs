@@ -14,11 +14,11 @@ use strum::IntoEnumIterator;
 struct Coord(i64, N32, N32);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct TSPLProblem<'a> {
+struct TSPLProblem {
     dimension: i64,
     coords: Vec<Coord>,
-    name: &'a str,
-    comment: &'a str,
+    name: String,
+    comment: String,
     problem_type: ProblemType,
     capacity: Option<i64>,
     edge_weight_type: EdgeWeightType,
@@ -27,14 +27,18 @@ struct TSPLProblem<'a> {
     node_coord_type: NodeCoordType,
     display_data_type: DisplayDataType,
 }
-
-// enum ProblemMeta {
-//     Name(String),
-//     Type(ProblemType),
-//     Comment(String),
-//     Dimension(i64),
-//     EWT(EdgeWeightType),
-// }
+enum ProblemMeta<'a> {
+    Dimension(i64),
+    Name(&'a str),
+    Comment(&'a str),
+    ProblemType(ProblemType),
+    Capacity(i64),
+    EWT(EdgeWeightType),
+    EWF(EdgeWeightFormat),
+    EDF(EdgeDataFormat),
+    NCT(NodeCoordType),
+    DDT(DisplayDataType),
+}
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 enum ProblemType {
     TSP,
@@ -121,6 +125,45 @@ fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
     assert_eq!(output, Ok(("", value)));
 }
 
+// fn kv_fn<'a>(input: &str, key: &'a str) -> IResult<&'a str, &'a str>,
+//    do_parse!(
+//         tag_s!(key) >>
+//         tag_s!(":") >>
+//         space0 >>
+//         value: not_line_ending >>
+//         line_ending >>
+//         (value)
+//     )
+// }
+named!(tfjfd<&str, EdgeWeightFormat>,
+    map_res!(call!(kv, "EDGE_WEIGHT_FORMAT"), str::parse)
+);
+
+// named_args!(kv_parse<'a>(key: &'a str)<&'a str, &'a T>,
+// map_res!(call!(kv, key), str::parse::<T>)
+// do_parse!(
+//     input,
+//     tag_s!(key)
+//         >> tag_s!(":")
+//         >> space0
+//         >> value: not_line_ending
+//         >> line_ending
+//         >> (value)
+// ),
+// fn many_reads(input:&[u8]) -> IResult<&[u8], Vec<Sequence>> {
+fn kv_parse<'a, T>(input: &'a str, key: &'a str) -> IResult<&'a str, T>
+where
+    T: std::str::FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Debug,
+{
+    let kv_out = kv(input, key);
+    // match kv_out {
+    //     Ok((i, v)) => str::parse::<T>(v).map(|tv| (i, tv)),
+    //     Err(a) => Err(a),
+    // }
+    kv_out.map(|(i, v): (&str, &str)| str::parse(v).map(|tv| (i, tv)).unwrap())
+    // kv_out.map(|(i, v): (&str, &str)| (i, str::parse(v)))
+}
 named!(get_name<&str,&str>,
     call!(kv, "NAME")
 );
@@ -237,9 +280,9 @@ named!(parse_problem<&str, TSPLProblem>,
         ddt: opt!(get_display_data_type) >>
         nct: opt!(get_node_coord_type) >>
         (TSPLProblem {
-            name:name.unwrap_or(""),
+            name:name.unwrap_or("").to_string(),
             problem_type:ptype.unwrap(),
-            comment: comment.unwrap_or(""),
+            comment: comment.unwrap_or("").to_string(),
             dimension:dimension.unwrap(),
             capacity: capacity,
             edge_weight_type:ewt.unwrap_or(EdgeWeightType::EUC_2D),
@@ -303,9 +346,9 @@ DIMENSION: 52
 EDGE_WEIGHT_TYPE: EUC_2D
 ";
     let parsed = TSPLProblem {
-        name: "berlin52",
+        name: String::from("berlin52"),
         problem_type: ProblemType::TSP,
-        comment: "52 locations in Berlin (Groetschel)",
+        comment: String::from("52 locations in Berlin (Groetschel)"),
         dimension: 52,
         edge_weight_type: EdgeWeightType::EUC_2D,
         coords: Vec::new(),
@@ -325,9 +368,9 @@ DIMENSION: 52
 EDGE_WEIGHT_TYPE: EUC_2D
 ";
     let parsed = TSPLProblem {
-        name: "",
+        name: String::from(""),
         problem_type: ProblemType::TSP,
-        comment: "",
+        comment: String::from(""),
         dimension: 52,
         edge_weight_type: EdgeWeightType::EUC_2D,
         coords: Vec::new(),
@@ -339,15 +382,3 @@ EDGE_WEIGHT_TYPE: EUC_2D
     };
     assert_eq!(parse_problem(header), Ok(("", parsed)))
 }
-// fn build_problem(headerInfo: Vec<ProblemMeta>) -> Problem {
-//     use ProblemMeta::*;
-//     let mut p: Problem = Default::default();
-//     for meta in headerInfo.into_iter() {
-//         match meta {
-//             Name(n) => p.name = n,
-//             Type(pt) => p.problem_type = pt,
-//             Comment(c) => p.comment = c,
-//             Dimension(d) => p.dimension = d,
-//             EWT(ewt) => p.edge_weight_type = ewt,
-//         };
-//
