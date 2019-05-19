@@ -1,6 +1,8 @@
 use noisy_float::prelude::*;
 #[macro_use]
 extern crate nom;
+use nom::character::complete::*;
+use nom::number::complete::*;
 use nom::*;
 extern crate strum;
 #[macro_use]
@@ -106,8 +108,8 @@ enum DisplayDataType {
 
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
-        tag_s!(key) >>
-        tag_s!(":") >>
+        tag!(key) >>
+        tag!(":") >>
         space0 >>
         value: not_line_ending >>
         line_ending >>
@@ -127,8 +129,8 @@ fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
 
 // fn kv_fn<'a>(input: &str, key: &'a str) -> IResult<&'a str, &'a str>,
 //    do_parse!(
-//         tag_s!(key) >>
-//         tag_s!(":") >>
+//         tag!(key) >>
+//         tag!(":") >>
 //         space0 >>
 //         value: not_line_ending >>
 //         line_ending >>
@@ -143,8 +145,8 @@ named!(tfjfd<&str, EdgeWeightFormat>,
 // map_res!(call!(kv, key), str::parse::<T>)
 // do_parse!(
 //     input,
-//     tag_s!(key)
-//         >> tag_s!(":")
+//     tag!(key)
+//         >> tag!(":")
 //         >> space0
 //         >> value: not_line_ending
 //         >> line_ending
@@ -157,11 +159,19 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Debug,
 {
     let kv_out = kv(input, key);
-    // match kv_out {
-    //     Ok((i, v)) => str::parse::<T>(v).map(|tv| (i, tv)),
-    //     Err(a) => Err(a),
-    // }
-    kv_out.map(|(i, v): (&str, &str)| str::parse(v).map(|tv| (i, tv)).unwrap())
+    match kv_out {
+        Ok((i, v)) => {
+            let parse_res = str::parse::<T>(v);
+            match parse_res {
+                Ok(tv) => Ok((i, tv)),
+                Err(a) => Err(nom::Err::Error((i, nom::error::ErrorKind::ParseTo)))
+                // Err(a) => Err(nom::Err::Error(nom::Context::Code(i, ErrorKind::Custom("Parse error"))))
+                // Err(a) => nom::Err(Err::Err(a)),
+            }
+        }
+        Err(a) => Err(a),
+    }
+    // kv_out.map(|(i, v): (&str, &str)| str::parse(v).map(|tv| (i, tv)).unwrap())
     // kv_out.map(|(i, v): (&str, &str)| (i, str::parse(v)))
 }
 named!(get_name<&str,&str>,
@@ -183,9 +193,9 @@ fn test_comment() {
     );
 }
 
-named!(get_type<&str, ProblemType>,
-    map_res!(call!(kv, "TYPE"), str::parse)
-);
+fn get_type(input: &str) -> IResult<&str, ProblemType> {
+    kv_parse::<ProblemType>(input, "TYPE")
+}
 
 #[test]
 fn test_type() {
@@ -194,12 +204,17 @@ fn test_type() {
     }
 }
 
-named!(get_dimension<&str, i64>,
-    map_res!(call!(kv, "DIMENSION"), str::parse::<i64>)
-);
+fn get_dimension(input: &str) -> IResult<&str, i64> {
+    kv_parse(input, "DIMENSION")
+}
 #[test]
 fn test_dimension() {
     test_kv(get_dimension, "DIMENSION", 8)
+}
+#[test]
+fn test_dimension_invalid() {
+    let output = get_dimension("DIMENSION: ABDC");
+    assert_eq!(output, Result::Err());
 }
 
 named!(get_capacity<&str, i64>,
@@ -297,11 +312,11 @@ named!(parse_problem<&str, TSPLProblem>,
 
 named!(get_2d_coord<&str, Coord>,
     do_parse!(
-        opt!(multispace) >>
-         i: digit >>
-            space >>
+        opt!(multispace1) >>
+         i: digit1 >>
+            space1 >>
          x: float >>
-            space >>
+            space1 >>
          y: float >>
          line_ending >>
          (Coord( i.parse().unwrap(), n32(x), n32(y))))
@@ -314,10 +329,10 @@ fn test_2d_coords() {
 }
 named!(get_node_coord_section<&str, Vec<Coord> >,
     do_parse!(
-        tag_s!("NODE_COORD_SECTION") >>
+        tag!("NODE_COORD_SECTION") >>
         line_ending >>
         coords: many1!(get_2d_coord) >>
-        opt!(complete!(tag_s!("EOF\n"))) >>
+        opt!(complete!(tag!("EOF\n"))) >>
         (coords)
     )
 );
@@ -382,3 +397,5 @@ EDGE_WEIGHT_TYPE: EUC_2D
     };
     assert_eq!(parse_problem(header), Ok(("", parsed)))
 }
+
+// Err(a) => nom::Err(Err::Err(a)),
