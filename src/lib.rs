@@ -4,7 +4,7 @@ extern crate nom;
 use nom::character::complete::*;
 use nom::number::complete::*;
 use nom::Err::*;
-use nom::*;
+use nom::{Err, IResult};
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
@@ -13,6 +13,7 @@ use std::fmt::{Debug, Display};
 use std::result::Result;
 use strum::IntoEnumIterator;
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Coord(i64, N32, N32);
 
@@ -101,7 +102,7 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
         tag!(":") >>
         space0 >>
         value: not_line_ending >>
-        line_ending >>
+        opt!(line_ending) >>
         (value)
     )
 );
@@ -200,7 +201,10 @@ fn test_dimension() {
 #[test]
 fn test_dimension_invalid() {
     let output = get_dimension("DIMENSION: ABDC\n");
-    assert_eq!(output, Ok(("", 8)))
+    assert_eq!(
+        output,
+        Err((nom::Err::Error(("", nom::error::ErrorKind::ParseTo))))
+    )
 }
 
 fn get_capacity(input: &str) -> IResult<&str, i64> {
@@ -266,12 +270,23 @@ fn test_display_data_type() {
         test_kv(get_display_data_type, "DISPLAY_DATA_TYPE", ddt);
     }
 }
-/*
+// /*
 fn build_problem(
-    (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (Option<String>),
+    (problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct, name): (
+        Option<ProblemType>,
+        Option<&str>,
+        Option<i64>,
+        Option<EdgeWeightType>,
+        Option<i64>,
+        Option<EdgeWeightFormat>,
+        Option<EdgeDataFormat>,
+        Option<DisplayDataType>,
+        Option<NodeCoordType>,
+        &str,
+    ),
 ) -> TSPLProblem {
     TSPLProblem {
-        name: name.unwrap_or("").to_string(),
+        name: name.to_string(),
         problem_type: problem_type.unwrap(),
         comment: comment.unwrap_or("").to_string(),
         dimension: dimension.unwrap(),
@@ -284,11 +299,10 @@ fn build_problem(
         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
     }
 }
-*/
-named!(parse_problem_perm<&str, (Option<ProblemType>, Option<&str>, Option<i64>, 
-Option<EdgeWeightType>, Option<i64>, Option<EdgeWeightFormat>, 
-Option<EdgeDataFormat>, Option<DisplayDataType>, Option<NodeCoordType>, &str)>,
-permutation!(
+fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
+    map!(
+        input,
+        dbg_dmp!(permutation!(
             get_type?,
             get_comment?,
             get_dimension?,
@@ -299,20 +313,10 @@ permutation!(
             get_display_data_type?,
             get_node_coord_type?,
             get_name
-            )
-
-);
-// get_display_data_type?,
-// get_node_coord_type?
-// named!(parse_problem_perm<&str, TSPLProblem>,
-// fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
-// named!(problem_perm<&str, (Option<&str>, &str)>,
-//     permutation!(get_name?, get_comment)
-// );
-
-// named!(perm<&str, (Option<&str>, &str)>,
-//   permutation!(get_name?, tag!("efg"))
-// );
+        )),
+        build_problem
+    )
+}
 
 named!(parse_problem<&str, TSPLProblem>,
     do_parse!(
@@ -405,7 +409,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem(header), Ok(("", parsed)))
+    assert_eq!(parse_problem_perm(header), Ok(("", parsed)))
 }
 #[test]
 fn test_parse_problem_works_with_missing_data() {
@@ -413,6 +417,7 @@ fn test_parse_problem_works_with_missing_data() {
     let header = "TYPE: TSP
 DIMENSION: 52
 EDGE_WEIGHT_TYPE: EUC_2D
+
 ";
     let parsed = TSPLProblem {
         name: String::from(""),
