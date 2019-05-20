@@ -3,6 +3,7 @@ use noisy_float::prelude::*;
 extern crate nom;
 use nom::character::complete::*;
 use nom::number::complete::*;
+use nom::Err::*;
 use nom::*;
 extern crate strum;
 #[macro_use]
@@ -28,18 +29,6 @@ struct TSPLProblem {
     edge_data_format: Option<EdgeDataFormat>,
     node_coord_type: NodeCoordType,
     display_data_type: DisplayDataType,
-}
-enum ProblemMeta<'a> {
-    Dimension(i64),
-    Name(&'a str),
-    Comment(&'a str),
-    ProblemType(ProblemType),
-    Capacity(i64),
-    EWT(EdgeWeightType),
-    EWF(EdgeWeightFormat),
-    EDF(EdgeDataFormat),
-    NCT(NodeCoordType),
-    DDT(DisplayDataType),
 }
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 enum ProblemType {
@@ -118,7 +107,7 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
 );
 
 fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
-    kvfunc: fn(&str) -> Result<(&str, G), Err<&str>>,
+    kvfunc: fn(&str) -> Result<(&str, G), Err<(&str, nom::error::ErrorKind)>>,
     key: &str,
     value: G,
 ) {
@@ -137,9 +126,6 @@ fn test_kv<'a, G: Display + Debug + PartialEq + Clone + 'a>(
 //         (value)
 //     )
 // }
-named!(tfjfd<&str, EdgeWeightFormat>,
-    map_res!(call!(kv, "EDGE_WEIGHT_FORMAT"), str::parse)
-);
 
 // named_args!(kv_parse<'a>(key: &'a str)<&'a str, &'a T>,
 // map_res!(call!(kv, key), str::parse::<T>)
@@ -164,7 +150,7 @@ where
             let parse_res = str::parse::<T>(v);
             match parse_res {
                 Ok(tv) => Ok((i, tv)),
-                Err(a) => Err(nom::Err::Error((i, nom::error::ErrorKind::ParseTo)))
+                Err(a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo)))
                 // Err(a) => Err(nom::Err::Error(nom::Context::Code(i, ErrorKind::Custom("Parse error"))))
                 // Err(a) => nom::Err(Err::Err(a)),
             }
@@ -213,22 +199,22 @@ fn test_dimension() {
 }
 #[test]
 fn test_dimension_invalid() {
-    let output = get_dimension("DIMENSION: ABDC");
-    assert_eq!(output, Result::Err());
+    let output = get_dimension("DIMENSION: ABDC\n");
+    assert_eq!(output, Ok(("", 8)))
 }
 
-named!(get_capacity<&str, i64>,
-    map_res!(call!(kv, "CAPACITY"), str::parse)
-);
+fn get_capacity(input: &str) -> IResult<&str, i64> {
+    kv_parse(input, "CAPACITY")
+}
 
 #[test]
 fn test_capacity() {
     test_kv(get_capacity, "CAPACITY", 8)
 }
 
-named!(get_edge_weight_type<&str, EdgeWeightType>,
-    map_res!(call!(kv, "EDGE_WEIGHT_TYPE"), str::parse)
-);
+fn get_edge_weight_type(input: &str) -> IResult<&str, EdgeWeightType> {
+    kv_parse(input, "EDGE_WEIGHT_TYPE")
+}
 
 #[test]
 fn test_edge_weight_type() {
@@ -237,9 +223,9 @@ fn test_edge_weight_type() {
     }
 }
 
-named!(get_edge_weight_format<&str, EdgeWeightFormat>,
-    map_res!(call!(kv, "EDGE_WEIGHT_FORMAT"), str::parse)
-);
+fn get_edge_weight_format(input: &str) -> IResult<&str, EdgeWeightFormat> {
+    kv_parse(input, "EDGE_WEIGHT_FORMAT")
+}
 
 #[test]
 fn test_edge_weight_format() {
@@ -280,8 +266,54 @@ fn test_display_data_type() {
         test_kv(get_display_data_type, "DISPLAY_DATA_TYPE", ddt);
     }
 }
+/*
+fn build_problem(
+    (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (Option<String>),
+) -> TSPLProblem {
+    TSPLProblem {
+        name: name.unwrap_or("").to_string(),
+        problem_type: problem_type.unwrap(),
+        comment: comment.unwrap_or("").to_string(),
+        dimension: dimension.unwrap(),
+        capacity: capacity,
+        edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
+        coords: Vec::new(),
+        edge_data_format: edf,
+        edge_weight_format: ewf,
+        node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
+        display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
+    }
+}
+*/
+named!(parse_problem_perm<&str, (Option<ProblemType>, Option<&str>, Option<i64>, 
+Option<EdgeWeightType>, Option<i64>, Option<EdgeWeightFormat>, 
+Option<EdgeDataFormat>, Option<DisplayDataType>, Option<NodeCoordType>, &str)>,
+permutation!(
+            get_type?,
+            get_comment?,
+            get_dimension?,
+            get_edge_weight_type?,
+            get_capacity?,
+            get_edge_weight_format?,
+            get_edge_data_format?,
+            get_display_data_type?,
+            get_node_coord_type?,
+            get_name
+            )
 
-// node_coords: opt!(get_node_coord_section) >>
+);
+// get_display_data_type?,
+// get_node_coord_type?
+// named!(parse_problem_perm<&str, TSPLProblem>,
+// fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
+// named!(problem_perm<&str, (Option<&str>, &str)>,
+//     permutation!(get_name?, get_comment)
+// );
+
+// named!(perm<&str, (Option<&str>, &str)>,
+//   permutation!(get_name?, tag!("efg"))
+// );
+
 named!(parse_problem<&str, TSPLProblem>,
     do_parse!(
         name: opt!(get_name) >>
@@ -397,5 +429,3 @@ EDGE_WEIGHT_TYPE: EUC_2D
     };
     assert_eq!(parse_problem(header), Ok(("", parsed)))
 }
-
-// Err(a) => nom::Err(Err::Err(a)),
