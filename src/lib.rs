@@ -272,7 +272,8 @@ fn test_display_data_type() {
 }
 // /*
 fn build_problem(
-    (problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct, name): (
+    (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
+        Option<&str>,
         Option<ProblemType>,
         Option<&str>,
         Option<i64>,
@@ -282,11 +283,10 @@ fn build_problem(
         Option<EdgeDataFormat>,
         Option<DisplayDataType>,
         Option<NodeCoordType>,
-        &str,
     ),
 ) -> TSPLProblem {
     TSPLProblem {
-        name: name.to_string(),
+        name: name.unwrap_or("").to_string(),
         problem_type: problem_type.unwrap(),
         comment: comment.unwrap_or("").to_string(),
         dimension: dimension.unwrap(),
@@ -303,6 +303,7 @@ fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
     map!(
         input,
         dbg_dmp!(permutation!(
+            get_name?,
             get_type?,
             get_comment?,
             get_dimension?,
@@ -311,8 +312,7 @@ fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
             get_edge_weight_format?,
             get_edge_data_format?,
             get_display_data_type?,
-            get_node_coord_type?,
-            get_name
+            opt!(get_node_coord_type)
         )),
         build_problem
     )
@@ -392,10 +392,10 @@ EOF
 fn test_parse_problem() {
     let header = "NAME: berlin52
 TYPE: TSP
-COMMENT: 52 locations in Berlin (Groetschel)
 DIMENSION: 52
+COMMENT: 52 locations in Berlin (Groetschel)
 EDGE_WEIGHT_TYPE: EUC_2D
-";
+ ";
     let parsed = TSPLProblem {
         name: String::from("berlin52"),
         problem_type: ProblemType::TSP,
@@ -409,7 +409,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem_perm(header), Ok(("", parsed)))
+    assert_eq!(parse_problem_perm(header), Ok((" ", parsed)))
 }
 #[test]
 fn test_parse_problem_works_with_missing_data() {
@@ -417,8 +417,7 @@ fn test_parse_problem_works_with_missing_data() {
     let header = "TYPE: TSP
 DIMENSION: 52
 EDGE_WEIGHT_TYPE: EUC_2D
-
-";
+ ";
     let parsed = TSPLProblem {
         name: String::from(""),
         problem_type: ProblemType::TSP,
@@ -432,5 +431,5 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem(header), Ok(("", parsed)))
+    assert_eq!(parse_problem(header), Ok((" ", parsed)))
 }
