@@ -17,6 +17,47 @@ use strum::IntoEnumIterator;
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct Coord(i64, N32, N32);
 
+struct FullProblem {
+    header: TSPLProblem,
+    data: TSPLProblem,
+}
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct TSPLData {
+    node_coordinates: Vec<Coord>,
+    depots: Vec<Coord>,
+    demands: Vec<Coord>,
+    edges: EdgeData,
+    fixed_edges: EdgeList,
+    display_data: Vec<(N32, N32)>,
+    tours: Vec<Vec<usize>>,
+    edge_weights: EdgeWeightData,
+}
+type EdgeList = Vec<(usize, usize)>;
+type EdgeWeights = Vec<Vec<i64>>;
+/// Holds edge information, either in the edge list or adjacency list format.
+/// The Adjacency list version is a List of N elements, each of which is a list of
+/// connections. Non-connected nodes are still counted as empty lists.
+///
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum EdgeData {
+    EdgeList(EdgeList),
+    AdjList(Vec<Vec<usize>>),
+}
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum EdgeWeightData {
+    FUNCTION(Vec<(N32, N32)>),
+    FULL_MATRIX(EdgeWeights),
+    UPPER_ROW(EdgeWeights),
+    LOWER_ROW(EdgeWeights),
+    UPPER_DIAG_ROW(EdgeWeights),
+    LOWER_DIAG_ROW(EdgeWeights),
+    UPPER_COL(EdgeWeights),
+    LOWER_COL(EdgeWeights),
+    UPPER_DIAG_COL(EdgeWeights),
+    LOWER_DIAG_COL(EdgeWeights),
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLProblem {
     dimension: i64,
@@ -314,5 +355,20 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem(header), Ok((" ", parsed)))
+    assert_eq!(parse_problem_perm(header), Ok((" ", parsed)))
+}
+
+fn parse_data_section<'a>(input: &'a str, header: TSPLProblem) -> IResult<&'a str, FullProblem> {
+    map!(
+        input,
+        permutation!(
+            call!(get_section, "NODE_COORD_SECTION", get_2d_coord),
+            call!(get_section, "NODE_COORD_SECTION", get_2d_coord)
+        ),
+        |x| { FullProblem { header } }
+    )
+}
+
+fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
+    parse_problem_perm(input).and_then(|(input, header)| parse_data_section(input, header))
 }
