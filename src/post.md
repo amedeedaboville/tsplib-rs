@@ -3,7 +3,8 @@ Implementing a Text-File Parser with nom
 This a an overview of what I'm doing.
 
 Nom is confusing, because it's full of macros. I saw a RustLatam talk that said macros are improving, so I'm hoping it gets better.
-Also, some of the names of macros changed a bit between versions.
+Also nom v5 is implementing things with functions instead, so I have hope.
+Also, some of the names of macros changed a bit between versions, which makes things hard.
 
 But parser combinators are user-friendly; parsing is a hard problem; there's no right answer like ISO 8609 or serializable mode.
 
@@ -30,6 +31,10 @@ NODE_COORD_SECTION
 ... (edges omitted for brevity)
 EOF
 ```
+
+The spec is here. There are a lot of other types of TSP-ish problems (like asymettric TSP) and different properties of the problem, like
+doing a "all cities are connected by their Euclidean distance" problem vs a "take these particular edges with these weights" problems, and
+an option to do adjacency lists vs matrix mode.
 
 The program I was copying used regexes to get the DIMENSION, and then the edge x/ys, but adapting the regexes to rust and the way the source
 program was fragile (rustc was complaining) I decided to just write a small parser.
@@ -71,7 +76,7 @@ So with `do_parse` you can chain parsers to parse, say, a whole line, and you ca
 Here I use the `space0` parser which is 0 or more whitespace characters, and the `rest` parser, which gives you the rest of an input.  (This works on a single line)
 From chaining these parsers together, we return the `value`.
 
-Nice! But my TSPLIB format is mostly specified as `KEY: VALUE` pairs, so I'd like to make a thing that can work for any KEY and give me the VALUE.
+Nice! But a lot of these headers are defined as `KEY: VALUE` pairs, so I'd like to make a thing that can work for any KEY and give me the VALUE.
 
 Enter `named_args`:
 
@@ -86,6 +91,8 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
 	)
 );
 ```
+Sadly I had to put lifetimes in, and I don't understand what these mean (because of the macro interaction).
+
 This makes a function called `kv` which takes both `input :str`, and a key:str. Unfortunately you have to start giving lifetimes here, but it's not too bad.
 
 Now my test looks like
@@ -194,7 +201,7 @@ It's almost like we could make our `kv` function call parse for us, and have the
 But as a Rust noobie I'm going to stop here because I don't want to get passing around types and going higher order.
 Also, I'm not sure if the Nom macros would work with a trait bound parameter.
 
-Already, I feel like leaving off the `str::parse::<i64>` for `str::parse` is getting a little "implicit magic-ey`, and I'm going to leave the
+Already, I feel like leaving off the `str::parse::<i64>` for `str::parse` is getting a little "implicit magic-ey` and harder to read, and I'm going to leave the
 explicit type call to make it easier to read.
 
 ####Abstracting out the tests
@@ -216,7 +223,7 @@ The Trait bounds are for
 * Display -> that the type can be put into a string
 * PartialEq -> Makes the values comparable
 * Debug -> assert_eq! was complaining
-
+I just put them in as the compiler complained
 
 Now I can write my tests as
 ```
@@ -324,7 +331,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
 And to my surprise, after the small multi-line modification, it passed immediately! Yay parser combinators and incrementally building up
 confidence in bigger and bigger pieces.
 
-Now, what's left is the "meat" of the format, to get the city list, which I had put off because it's not in the super easy `KEY: VALUE`
+Now, what's left is the "soymeat" of the format, to get the city list, which I had put off because it's not in the super easy `KEY: VALUE`
 format.
 
 ###Getting the cities
@@ -342,7 +349,7 @@ We'll need:
 * a tag_s("NODE_COORD_SECTION"), 
 * a newline
 * a Coord2D parser that gets the i, x, y values into a Coord
-then a `many1!` combinator that gives us a list of Coords
+* then a `many1!` combinator that gives us a list of Coords
 
 The coord2d parser looked like this:
 
@@ -384,3 +391,98 @@ I use the n32 type because Rust zealously implements IEEE754 and doesn't let you
 though I've never met anyone who actually used that property.
 So I use the `noisy_floats` crate that panics instead of holding NaNs, and has the `N32` (and other sizes) type that holds a non-NaN f32.
 
+
+###Making the order not matter
+As mentioned in the spec, the order shouldn't matter.
+I had a nice idea of how to implement this using the Builder Pattern, which keeps an intermediate version of your object and incrementally adds properties
+to it.
+Instead of all of these `opt!` calls, we initalize everything to None, and then have a build() function that takes a Vec of these properties, and applies
+them appropriately.cargo install cargo-edit
+
+Actually, nom has a better way, using the `permute!` macro, which can take child parsers in any order, and make them optional by adding `?` instead of 
+wrapping in opt.
+So after a lot of messing around, I came up with :
+
+```
+fn build_problem(
+    (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
+        Option<&str>,
+        Option<ProblemType>,
+        Option<&str>,
+        Option<i64>,
+        Option<EdgeWeightType>,
+        Option<i64>,
+        Option<EdgeWeightFormat>,
+        Option<EdgeDataFormat>,
+        Option<DisplayDataType>,
+        Option<NodeCoordType>,
+    ),
+) -> TSPLProblem {
+    TSPLProblem {
+        name: name.unwrap_or("").to_string(),
+        problem_type: problem_type.unwrap(),
+        comment: comment.unwrap_or("").to_string(),
+        dimension: dimension.unwrap(),
+        capacity: capacity,
+        edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
+        coords: Vec::new(),
+        edge_data_format: edf,
+        edge_weight_format: ewf,
+        node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
+        display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
+    }
+}
+fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
+    map!(
+        input,
+        permutation!(
+            get_name?,
+            get_type?,
+            get_comment?,
+            get_dimension?,
+            get_edge_weight_type?,
+            get_capacity?,
+            get_edge_weight_format?,
+            get_edge_data_format?,
+            get_display_data_type?,
+            opt!(get_node_coord_type)
+        ),
+        build_problem
+    )
+}
+```
+Which has a fair bit of duplication in it, but it's not very bad, and it's not too much of a problem. This section of the data format would rarely change
+much. Additionally, this lets us do validation in the `build_problem` function, where we could check if say the the dimension was set correctly.
+
+There is currently a small bug in nom, the last parser in the list can't have a `?` appended to it, so I used the `opt!` macro instead.
+
+
+###Doing the type magic anyway
+After implementing the other KV header values, I got tired of looking at all this code, and I figured I could write a function that called str_parse on my 
+`kv`. This turned out to be complicated, or I couldn't do it with the macro version of named_args. Then I moved to nom 5.0 because that had a simpler error
+format, but I got it to go!
+Nom has a macro called `parse_to` which does a similar things, but not using the type system unfortunately! 
+
+```
+fn kv_parse<'a, T>(input: &'a str, key: &'a str) -> IResult<&'a str, T>
+where
+    T: std::str::FromStr,
+{
+    kv(input, key).and_then(|(i, v)| match str::parse::<T>(v) {
+        Ok(tv) => Ok((i, tv)),
+        Err(a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo))),
+    })
+}
+```
+This made my simple `key:value` parsers so clean:
+```
+fn get_dimension(input: &str) -> IResult<&str, i64> {
+    kv_parse(input, "DIMENSION")
+}
+
+fn get_edge_weight_type(input: &str) -> IResult<&str, EdgeWeightType> {
+    kv_parse(input, "EDGE_WEIGHT_TYPE")
+}
+```
+Then I wasted a BUNCH of time trying to go further and storing a dictionary/map of KEY to type mappings (maybe in an enum?) so this could be autogenerated...
+It was a bunch of rabbit holing for no output. 

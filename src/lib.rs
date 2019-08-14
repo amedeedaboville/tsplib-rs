@@ -3,14 +3,13 @@ use noisy_float::prelude::*;
 extern crate nom;
 use nom::character::complete::*;
 use nom::number::complete::*;
-use nom::Err::*;
 use nom::{Err, IResult};
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Display};
-use std::result::Result;
+//use std::result::Result;
 use strum::IntoEnumIterator;
 
 #[allow(dead_code)]
@@ -24,8 +23,8 @@ struct FullProblem {
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLData {
     node_coordinates: Vec<Coord>,
-    depots: Vec<Coord>,
-    demands: Vec<Coord>,
+    depots: Vec<i64>,
+    demands: Vec<i64>,
     edges: EdgeData,
     fixed_edges: EdgeList,
     display_data: Vec<(N32, N32)>,
@@ -137,6 +136,14 @@ enum DisplayDataType {
     NO_DISPLAY,
 }
 
+named!(numbers_on_line<&str, Vec<&str>>,
+   do_parse!(
+        value: separated_list!(digit1, multispace1) >>
+        opt!(line_ending) >>
+        (value)
+    )
+);
+
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
         tag!(key) >>
@@ -210,7 +217,7 @@ fn test_display_data_type() {
     }
 }
 
-fn build_problem(
+fn build_header(
     (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
         Option<String>,
         Option<ProblemType>,
@@ -238,7 +245,7 @@ fn build_problem(
         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
     }
 }
-fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
+fn parse_header_perm(input: &str) -> IResult<&str, TSPLProblem> {
     map!(
         input,
         permutation!(
@@ -253,11 +260,11 @@ fn parse_problem_perm(input: &str) -> IResult<&str, TSPLProblem> {
             call!(kv_parse, "DISPLAY_DATA_TYPE")?,
             opt!(call!(kv_parse, "NODE_COORD_TYPE"))
         ),
-        build_problem
+        build_header
     )
 }
 
-fn get_section<'a, T>(
+fn get_line<'a, T>(
     input: &'a str,
     section_title: &'a str,
     section_parser: fn(&str) -> IResult<&str, T>,
@@ -271,23 +278,38 @@ fn get_section<'a, T>(
             >> (payload)
     )
 }
+fn get_section<'a, T>(
+    input: &'a str,
+    section_title: &'a str,
+    line_parser: fn(&'a str) -> IResult<&'a str, T>,
+) -> IResult<&'a str, Vec<T>> {
+    do_parse!(
+        input,
+        tag!(section_title)
+            >> payload: separated_list!(line_ending, line_parser)
+            >> line_ending
+            >> opt!(complete!(tag!("EOF\n")))
+            >> (payload)
+    )
+}
 fn get_2d_coord(input: &str) -> IResult<&str, Coord> {
     do_parse!(
         input,
-        opt!(multispace1)
+            multispace0
             >> i: digit1
-            >> space1
+            >> multispace1
             >> x: float
-            >> space1
+            >> multispace1
             >> y: float
-            >> line_ending
             >> (Coord(i.parse().unwrap(), n32(x), n32(y)))
     )
 }
 
 #[test]
 fn test_2d_coords() {
-    let input = " 1 1.0 3.0\n";
+    let input = " 1 1.0 3.0";
+    assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
+    let input2 = "1 1.0 3.0";
     assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
 }
 
@@ -333,7 +355,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem_perm(header), Ok((" ", parsed)))
+    assert_eq!(parse_header_perm(header), Ok((" ", parsed)))
 }
 #[test]
 fn test_parse_problem_works_with_missing_data() {
@@ -355,20 +377,49 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_problem_perm(header), Ok((" ", parsed)))
+    assert_eq!(parse_header_perm(header), Ok((" ", parsed)))
 }
 
 fn parse_data_section<'a>(input: &'a str, header: TSPLProblem) -> IResult<&'a str, FullProblem> {
+    let coord_parser = get_2d_coord;
     map!(
         input,
         permutation!(
-            call!(get_section, "NODE_COORD_SECTION", get_2d_coord),
-            call!(get_section, "NODE_COORD_SECTION", get_2d_coord)
+            call!(get_section, "DEPOT_SECTION", digit1)?,
+            call!(get_section, "NODE_COORD_SECTION", numbers_on_line)
         ),
-        |x| { FullProblem { header } }
+        |x| { FullProblem { header: header.clone(), data: header.clone()} }
     )
 }
+// fn build_problem_with_data(
+//     (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
+//         Option<String>,
+//         Option<ProblemType>,
+//         Option<String>,
+//         Option<i64>,
+//         Option<EdgeWeightType>,
+//         Option<i64>,
+//         Option<EdgeWeightFormat>,
+//         Option<EdgeDataFormat>,
+//         Option<DisplayDataType>,
+//         Option<NodeCoordType>,
+//     ),
+// ) -> TSPLProblem {
+//     TSPLProblem {
+//         name: name.unwrap_or("".to_string()),
+//         problem_type: problem_type.unwrap(),
+//         comment: comment.unwrap_or("".to_string()),
+//         dimension: dimension.unwrap(),
+//         capacity: capacity,
+//         edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
+//         coords: Vec::new(),
+//         edge_data_format: edf,
+//         edge_weight_format: ewf,
+//         node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
+//         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
+//     }
+// }
 
 fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
-    parse_problem_perm(input).and_then(|(input, header)| parse_data_section(input, header))
+    parse_header_perm(input).and_then(|(input, header)| parse_data_section(input, header))
 }
