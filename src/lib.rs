@@ -136,7 +136,7 @@ enum DisplayDataType {
 }
 
 fn ints_on_line(input: &str) -> IResult<&str, Vec<&str>> {
-    separated_list!(input, multispace1, digit1)
+    separated_list!(input, space1, digit1)
 }
 #[test]
 fn test_ints_on_line() {
@@ -144,7 +144,7 @@ fn test_ints_on_line() {
 }
 
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
-    separated_list!(input, multispace1, float)
+    separated_list!(input, space1, float)
 }
 #[test]
 fn test_numbers_on_line() {
