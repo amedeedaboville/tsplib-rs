@@ -181,8 +181,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "tsp"
-version = "0.1.0"
+name = "tsplib"
+version = "0.2.0"
 dependencies = [
  "noisy_float 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "nom 5.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
