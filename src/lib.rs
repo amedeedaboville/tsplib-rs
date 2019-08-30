@@ -289,21 +289,6 @@ fn parse_header_perm(input: &str) -> IResult<&str, TSPLMeta> {
     )
 }
 
-fn get_section<'a, T>(
-    input: &'a str,
-    section_title: &'a str,
-    line_parser: fn(&'a str) -> IResult<&'a str, T>,
-) -> IResult<&'a str, Vec<T>> {
-    do_parse!(
-        input,
-        tag!(section_title)
-            >> line_ending
-            >> payload: separated_list!(line_ending, line_parser)
-            >> line_ending
-            >> opt!(complete!(tag!("EOF\n")))
-            >> (payload)
-    )
-}
 fn get_data_section<'a, T>(
     input: &'a str,
     section_title: &'a str,
@@ -426,7 +411,7 @@ fn test_2d_coords() {
 }
 
 fn get_node_coord_section(input: &str) -> IResult<&str, Vec<Coord>> {
-    get_section(input, "NODE_COORD_SECTION", get_2d_coord)
+    get_data_section(input, "NODE_COORD_SECTION", parse_coord_vec)
 }
 #[test]
 fn test_node_coord_section() {
@@ -442,9 +427,6 @@ EOF
         Coord(3, n32(345.0), n32(750.0)),
     ];
     assert_eq!(get_node_coord_section(ncs), Ok(("", out)))
-}
-fn get_edge_weight_section(input: &str) -> IResult<&str, Vec<Coord>> {
-    get_section(input, "EDGE_WEIGHT_SECTION", get_2d_coord)
 }
 #[test]
 fn test_parse_problem() {
