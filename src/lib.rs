@@ -22,18 +22,32 @@ struct Demand(u32, u32);
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct FullProblem {
     header: TSPLMeta,
-    // data: TSPLData,
+    data: TSPLData,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLData {
-    node_coordinates: Vec<Coord>,
-    depots: Vec<i64>,
-    demands: Vec<i64>,
-    edges: EdgeDataList,
-    fixed_edges: EdgeList,
-    display_data: Vec<(N32, N32)>,
-    tours: Vec<Vec<usize>>,
-    edge_weights: EdgeWeightData,
+    node_coordinates: Option<Vec<Coord>>,
+    depots: Option<Vec<usize>>,
+    demands: Option<Vec<Demand>>,
+    edges: Option<Vec<EdgeData>>,
+    fixed_edges: Option<EdgeList>,
+    display_data: Option<Vec<Coord>>,
+    tours: Option<Vec<Tour>>,
+    edge_weights: Option<EdgeWeightData>,
+}
+impl TSPLData {
+    fn empty() -> TSPLData {
+        TSPLData {
+            node_coordinates: None,
+            depots: None,
+            demands: None,
+            edges: None,
+            fixed_edges: None,
+            display_data: None,
+            tours: None,
+            edge_weights: None,
+        }
+    }
 }
 type Edge = (usize, usize);
 type EdgeList = Vec<Edge>;
@@ -51,11 +65,6 @@ type AdjList = Vec<Adj>;
 enum EdgeData {
     Edge(Edge),
     Adj(Adj),
-}
-#[derive(Debug, PartialEq, Eq, Clone)]
-enum EdgeDataList {
-    EdgeList(EdgeList),
-    AdjList(AdjList),
 }
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -314,11 +323,11 @@ where
     );
     out
 }
-fn parse_depot_vec(input: Vec<f32>) -> Option<u32> {
+fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
     if input.len() != 1 {
         None
     } else {
-        Some(input[0] as u32)
+        Some(input[0] as usize)
     }
 }
 fn parse_coord_vec(input: Vec<f32>) -> Option<Coord> {
@@ -486,25 +495,47 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     map!(
         input,
         permutation!(
+            opt!(call!(get_section, "NODE_COORD_SECTION", parse_coord_vec)),
             opt!(call!(get_section, "DEPOT_SECTION", parse_depot_vec)),
             opt!(call!(get_section, "DEMAND_SECTION", parse_demand_vec)),
             opt!(call!(get_section, "EDGE_DATA_SECTION", edge_parser)),
             opt!(call!(get_section, "FIXED_EDGES_SECTION", parse_edge_vec)),
             opt!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord_vec)), //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
             opt!(call!(get_section, "TOUR_SECTION", parse_tour_vec)),
-            opt!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec)),
-            call!(get_section, "NODE_COORD_SECTION", parse_coord_vec)?
+            opt!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec))
         ),
         |x| {
             println!("Parsed successfully got {:?}", x);
             FullProblem {
                 header: header.clone(),
-                // data: TSPLData {},
+                data: build_data(x),
             }
         }
     )
 }
-
+fn build_data(
+    (coords, depots, demands, edge_datas, fixed_edges, ddts, tours, edge_weights): (
+        Option<Vec<Coord>>,
+        Option<Vec<usize>>,
+        Option<Vec<Demand>>,
+        Option<Vec<EdgeData>>,
+        Option<Vec<Edge>>,
+        Option<Vec<Coord>>,
+        Option<Vec<Tour>>,
+        Option<Vec<EdgeWeightList>>,
+    ),
+) -> TSPLData {
+    TSPLData {
+        node_coordinates: coords,
+        depots: depots,
+        demands: demands,
+        display_data: ddts,
+        edge_weights: edge_weights.map(|e| EdgeWeightData::FULL_MATRIX(e)),
+        edges: edge_datas,
+        fixed_edges: fixed_edges,
+        tours: tours,
+    }
+}
 #[test]
 fn test_parse_data_section() {
     let header = TSPLMeta {
@@ -530,7 +561,8 @@ EOF
         Ok((
             "",
             FullProblem {
-                header: header.clone()
+                header: header.clone(),
+                data: TSPLData::empty()
             }
         ))
     );
