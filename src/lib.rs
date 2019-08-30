@@ -17,8 +17,8 @@ use strum::IntoEnumIterator;
 struct Coord(i64, N32, N32);
 
 struct FullProblem {
-    header: TSPLProblem,
-    data: TSPLProblem,
+    header: TSPLMeta,
+    data: TSPLMeta,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLData {
@@ -58,13 +58,12 @@ enum EdgeWeightData {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct TSPLProblem {
-    dimension: i64,
-    coords: Vec<Coord>,
+struct TSPLMeta {
     name: String,
-    comment: String,
     problem_type: ProblemType,
-    capacity: Option<i64>,
+    comment: String,
+    dimension: i64,
+    capacity: Option<u64>,
     edge_weight_type: EdgeWeightType,
     edge_weight_format: Option<EdgeWeightFormat>,
     edge_data_format: Option<EdgeDataFormat>,
@@ -224,28 +223,27 @@ fn build_header(
         Option<String>,
         Option<i64>,
         Option<EdgeWeightType>,
-        Option<i64>,
+        Option<u64>,
         Option<EdgeWeightFormat>,
         Option<EdgeDataFormat>,
         Option<DisplayDataType>,
         Option<NodeCoordType>,
     ),
-) -> TSPLProblem {
-    TSPLProblem {
+) -> TSPLMeta {
+    TSPLMeta {
         name: name.unwrap_or("".to_string()),
         problem_type: problem_type.unwrap(),
         comment: comment.unwrap_or("".to_string()),
         dimension: dimension.unwrap(),
         capacity: capacity,
         edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
-        coords: Vec::new(),
         edge_data_format: edf,
         edge_weight_format: ewf,
         node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
     }
 }
-fn parse_header_perm(input: &str) -> IResult<&str, TSPLProblem> {
+fn parse_header_perm(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
         input,
         permutation!(
@@ -348,7 +346,6 @@ EDGE_WEIGHT_TYPE: EUC_2D
         comment: String::from("52 locations in Berlin (Groetschel)"),
         dimension: 52,
         edge_weight_type: EdgeWeightType::EUC_2D,
-        coords: Vec::new(),
         capacity: None,
         display_data_type: DisplayDataType::NO_DISPLAY,
         edge_data_format: None,
@@ -370,7 +367,6 @@ EDGE_WEIGHT_TYPE: EUC_2D
         comment: String::from(""),
         dimension: 52,
         edge_weight_type: EdgeWeightType::EUC_2D,
-        coords: Vec::new(),
         capacity: None,
         display_data_type: DisplayDataType::NO_DISPLAY,
         edge_data_format: None,
@@ -380,7 +376,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
     assert_eq!(parse_header_perm(header), Ok((" ", parsed)))
 }
 
-fn parse_data_section<'a>(input: &'a str, header: TSPLProblem) -> IResult<&'a str, FullProblem> {
+fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, FullProblem> {
     let coord_parser = get_2d_coord;
     map!(
         input,
@@ -412,7 +408,6 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLProblem) -> IResult<&'a st
 //         dimension: dimension.unwrap(),
 //         capacity: capacity,
 //         edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
-//         coords: Vec::new(),
 //         edge_data_format: edf,
 //         edge_weight_format: ewf,
 //         node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
