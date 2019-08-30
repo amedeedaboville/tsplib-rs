@@ -289,7 +289,7 @@ fn parse_header_perm(input: &str) -> IResult<&str, TSPLMeta> {
     )
 }
 
-fn get_data_section<'a, T>(
+fn get_section<'a, T>(
     input: &'a str,
     section_title: &'a str,
     line_parser: fn(Vec<f32>) -> Option<T>,
@@ -411,7 +411,7 @@ fn test_2d_coords() {
 }
 
 fn get_node_coord_section(input: &str) -> IResult<&str, Vec<Coord>> {
-    get_data_section(input, "NODE_COORD_SECTION", parse_coord_vec)
+    get_section(input, "NODE_COORD_SECTION", parse_coord_vec)
 }
 #[test]
 fn test_node_coord_section() {
@@ -486,26 +486,14 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     map!(
         input,
         permutation!(
-            opt!(call!(get_data_section, "DEPOT_SECTION", parse_depot_vec)),
-            opt!(call!(get_data_section, "DEMAND_SECTION", parse_demand_vec)),
-            opt!(call!(get_data_section, "EDGE_DATA_SECTION", edge_parser)),
-            opt!(call!(
-                get_data_section,
-                "FIXED_EDGES_SECTION",
-                parse_edge_vec
-            )),
-            opt!(call!(
-                get_data_section,
-                "DISPLAY_DATA_SECTION",
-                parse_coord_vec //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
-            )),
-            opt!(call!(get_data_section, "TOUR_SECTION", parse_tour_vec)),
-            opt!(call!(
-                get_data_section,
-                "EDGE_WEIGHT_SECTION",
-                parse_weights_vec
-            )),
-            call!(get_data_section, "NODE_COORD_SECTION", parse_coord_vec)?
+            opt!(call!(get_section, "DEPOT_SECTION", parse_depot_vec)),
+            opt!(call!(get_section, "DEMAND_SECTION", parse_demand_vec)),
+            opt!(call!(get_section, "EDGE_DATA_SECTION", edge_parser)),
+            opt!(call!(get_section, "FIXED_EDGES_SECTION", parse_edge_vec)),
+            opt!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord_vec)), //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
+            opt!(call!(get_section, "TOUR_SECTION", parse_tour_vec)),
+            opt!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec)),
+            call!(get_section, "NODE_COORD_SECTION", parse_coord_vec)?
         ),
         |x| {
             println!("Parsed successfully got {:?}", x);
