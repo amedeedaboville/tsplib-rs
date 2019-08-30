@@ -351,7 +351,7 @@ DIMENSION: 52
 COMMENT: 52 locations in Berlin (Groetschel)
 EDGE_WEIGHT_TYPE: EUC_2D
  ";
-    let parsed = TSPLProblem {
+    let parsed = TSPLMeta {
         name: String::from("berlin52"),
         problem_type: ProblemType::TSP,
         comment: String::from("52 locations in Berlin (Groetschel)"),
@@ -372,7 +372,7 @@ fn test_parse_problem_works_with_missing_data() {
 DIMENSION: 52
 EDGE_WEIGHT_TYPE: EUC_2D
  ";
-    let parsed = TSPLProblem {
+    let parsed = TSPLMeta {
         name: String::from(""),
         problem_type: ProblemType::TSP,
         comment: String::from(""),
