@@ -273,20 +273,6 @@ fn parse_header_perm(input: &str) -> IResult<&str, TSPLMeta> {
     )
 }
 
-fn get_line<'a, T>(
-    input: &'a str,
-    section_title: &'a str,
-    section_parser: fn(&str) -> IResult<&str, T>,
-) -> IResult<&'a str, Vec<T>> {
-    do_parse!(
-        input,
-        tag!(section_title)
-            >> line_ending
-            >> payload: many1!(section_parser)
-            >> opt!(complete!(tag!("EOF\n")))
-            >> (payload)
-    )
-}
 fn get_section<'a, T>(
     input: &'a str,
     section_title: &'a str,
