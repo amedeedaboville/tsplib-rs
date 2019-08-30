@@ -501,6 +501,10 @@ fn test_parse_data_section() {
 1 565.0 575.0
 2 25.0 185.0
 3 345.0 750.0
+DISPLAY_DATA_SECTION
+1 8.0 124.0
+2 125.0 80.0
+3 97.0 74.0
 EOF
 ";
     let mut t = TSPLData::empty();
@@ -508,6 +512,11 @@ EOF
         Coord(1, n32(565.0), n32(575.0)),
         Coord(2, n32(25.0), n32(185.0)),
         Coord(3, n32(345.0), n32(750.0)),
+    ]);
+    t.display_data = Some(vec![
+        Coord(1, n32(8.0), n32(124.0)),
+        Coord(2, n32(125.0), n32(80.0)),
+        Coord(3, n32(97.0), n32(74.0)),
     ]);
     assert_eq!(
         parse_data_section(ncs, header.clone()),
