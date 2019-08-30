@@ -19,8 +19,7 @@ corners that have been cut in the other implementations.
 
 Project Structure
 ---
-The intent is for this to be a library crate.
-`main.rs` contains a rudimentary and broken TSP solver. This will be cleaned up soon.
+This is a library crate.
 
 `lib.rs` contains the data types and parsing functionality. 
 
