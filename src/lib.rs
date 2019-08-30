@@ -281,6 +281,7 @@ fn get_section<'a, T>(
     do_parse!(
         input,
         tag!(section_title)
+            >> line_ending
             >> payload: separated_list!(line_ending, line_parser)
             >> line_ending
             >> opt!(complete!(tag!("EOF\n")))
