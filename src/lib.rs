@@ -135,13 +135,24 @@ enum DisplayDataType {
     NO_DISPLAY,
 }
 
-named!(numbers_on_line<&str, Vec<&str>>,
-   do_parse!(
-        value: separated_list!(digit1, multispace1) >>
-        opt!(line_ending) >>
-        (value)
-    )
-);
+fn ints_on_line(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list!(input, multispace1, digit1)
+}
+#[test]
+fn test_ints_on_line() {
+    assert_eq!(ints_on_line("1 2 3 4"), Ok(("", vec!["1", "2", "3", "4"])));
+}
+
+fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
+    separated_list!(input, multispace1, float)
+}
+#[test]
+fn test_numbers_on_line() {
+    assert_eq!(
+        numbers_on_line("1.2 2 3 4"),
+        Ok(("", vec![1.2, 2.0, 3.0, 4.0]))
+    );
+}
 
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
@@ -293,7 +304,7 @@ fn get_section<'a, T>(
 fn get_2d_coord(input: &str) -> IResult<&str, Coord> {
     do_parse!(
         input,
-            multispace0
+        multispace0
             >> i: digit1
             >> multispace1
             >> x: float
