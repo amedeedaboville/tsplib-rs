@@ -306,7 +306,6 @@ fn get_section<'a, T>(
 where
     T: std::fmt::Debug,
 {
-    // println!("Get section nln {:?}", input);
     let out = do_parse!(
         input,
         tag!(section_title)
@@ -314,7 +313,6 @@ where
             >> payload: separated_list!(line_ending, map_opt!(numbers_on_line, line_parser))
             >> line_ending
             >> opt!(complete!(tag!("EOF\n")))
-            >> opt!(complete!(tag!("-1\n")))
             >> (payload)
     );
     println!(
@@ -496,13 +494,41 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
         input,
         permutation!(
             opt!(call!(get_section, "NODE_COORD_SECTION", parse_coord_vec)),
-            opt!(call!(get_section, "DEPOT_SECTION", parse_depot_vec)),
-            opt!(call!(get_section, "DEMAND_SECTION", parse_demand_vec)),
-            opt!(call!(get_section, "EDGE_DATA_SECTION", edge_parser)),
-            opt!(call!(get_section, "FIXED_EDGES_SECTION", parse_edge_vec)),
-            opt!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord_vec)), //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
-            opt!(call!(get_section, "TOUR_SECTION", parse_tour_vec)),
-            opt!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec))
+            opt!(complete!(call!(
+                get_section,
+                "DEPOT_SECTION",
+                parse_depot_vec
+            ))),
+            opt!(complete!(call!(
+                get_section,
+                "DEMAND_SECTION",
+                parse_demand_vec
+            ))),
+            opt!(complete!(call!(
+                get_section,
+                "EDGE_DATA_SECTION",
+                edge_parser
+            ))),
+            opt!(complete!(call!(
+                get_section,
+                "FIXED_EDGES_SECTION",
+                parse_edge_vec
+            ))),
+            opt!(complete!(call!(
+                get_section,
+                "DISPLAY_DATA_SECTION",
+                parse_coord_vec
+            ))), //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
+            opt!(complete!(call!(
+                get_section,
+                "TOUR_SECTION",
+                parse_tour_vec
+            ))),
+            opt!(complete!(call!(
+                get_section,
+                "EDGE_WEIGHT_SECTION",
+                parse_weights_vec
+            )))
         ),
         |x| {
             println!("Parsed successfully got {:?}", x);
@@ -556,13 +582,19 @@ fn test_parse_data_section() {
 3 345.0 750.0
 EOF
 ";
+    let mut t = TSPLData::empty();
+    t.node_coordinates = Some(vec![
+        Coord(1, n32(565.0), n32(575.0)),
+        Coord(2, n32(25.0), n32(185.0)),
+        Coord(3, n32(345.0), n32(750.0)),
+    ]);
     assert_eq!(
         parse_data_section(ncs, header.clone()),
         Ok((
             "",
             FullProblem {
                 header: header.clone(),
-                data: TSPLData::empty()
+                data: t,
             }
         ))
     );
