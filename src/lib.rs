@@ -18,7 +18,7 @@ struct Coord(i64, N32, N32);
 
 struct FullProblem {
     header: TSPLMeta,
-    data: TSPLMeta,
+    // data: TSPLData,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct TSPLData {
@@ -395,7 +395,12 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
             call!(get_section, "DEPOT_SECTION", digit1)?,
             call!(get_section, "NODE_COORD_SECTION", numbers_on_line)
         ),
-        |x| { FullProblem { header: header.clone(), data: header.clone()} }
+        |x| {
+            FullProblem {
+                header: header.clone(),
+                // data: TSPLData {},
+            }
+        }
     )
 }
 // fn build_problem_with_data(
