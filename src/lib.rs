@@ -159,16 +159,7 @@ enum DisplayDataType {
     NO_DISPLAY,
 }
 
-fn ints_on_line(input: &str) -> IResult<&str, Vec<&str>> {
-    separated_list!(input, space1, digit1)
-}
-#[test]
-fn test_ints_on_line() {
-    assert_eq!(ints_on_line("1 2 3 4"), Ok(("", vec!["1", "2", "3", "4"])));
-}
-
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
-    println!("NLN {:?}", input);
     separated_list!(input, space1, float)
 }
 #[test]
@@ -209,44 +200,28 @@ where
     })
 }
 #[test]
-fn test_name() {
+fn test_some_kvs() {
     test_kv("NAME", "some_name".to_string());
-}
-#[test]
-fn test_comment() {
-    let comment =
-        "My favorite TSP instance: Minimum tour around all of my friend's fridges".to_string();
-    test_kv("COMMENT", comment);
+    test_kv(
+        "COMMENT",
+        "My favorite TSP instance: Minimum tour around all of my friend's fridges".to_string(),
+    );
 }
 
 #[test]
-fn test_edge_weight_type() {
+fn test_iterable_enums() {
     for ewt in EdgeWeightType::iter() {
         test_kv("EDGE_WEIGHT_TYPE", ewt);
     }
-}
-#[test]
-fn test_edge_weight_format() {
     for ewf in EdgeWeightFormat::iter() {
         test_kv("EDGE_WEIGHT_FORMAT", ewf);
     }
-}
-
-#[test]
-fn test_edge_data_format() {
     for edf in EdgeDataFormat::iter() {
         test_kv("EDGE_DATA_FORMAT", edf);
     }
-}
-
-#[test]
-fn test_node_coord_type() {
     for nct in NodeCoordType::iter() {
         test_kv("NODE_COORD_TYPE", nct);
     }
-}
-#[test]
-fn test_display_data_type() {
     for ddt in DisplayDataType::iter() {
         test_kv("DISPLAY_DATA_TYPE", ddt);
     }
@@ -399,44 +374,19 @@ fn parse_adjacency_vec(input: Vec<f32>) -> Option<EdgeData> {
     }
 }
 
-fn parse_edge_data_vec(input: Vec<f32>) {
-    //either EdgeData:Edge(parse_edge_vec(input))
-    //or EdgeData:Adj(parse_adj_vec(input))
-}
-
-fn get_2d_coord(input: &str) -> IResult<&str, Coord> {
-    map_opt!(input, numbers_on_line, parse_coord_vec)
-}
-
 #[test]
 fn test_2d_coords() {
     let input = "1 1.0 3.0";
-    assert_eq!(numbers_on_line(input), Ok(("", vec![1.0, 1.0, 3.0])));
-    assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
-    let input2 = "1 1.0 3.0";
-    assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
+    let input_vec = vec![1.0, 1.0, 3.0];
+    assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
+    assert_eq!(
+        parse_coord_vec(input_vec),
+        Some(Coord(1, n32(1.0), n32(3.0)))
+    );
 }
 
-fn get_node_coord_section(input: &str) -> IResult<&str, Vec<Coord>> {
-    get_section(input, "NODE_COORD_SECTION", parse_coord_vec)
-}
 #[test]
-fn test_node_coord_section() {
-    let ncs = "NODE_COORD_SECTION
-1 565.0 575.0
-2 25.0 185.0
-3 345.0 750.0
-EOF
-";
-    let out = vec![
-        Coord(1, n32(565.0), n32(575.0)),
-        Coord(2, n32(25.0), n32(185.0)),
-        Coord(3, n32(345.0), n32(750.0)),
-    ];
-    assert_eq!(get_node_coord_section(ncs), Ok(("", out)))
-}
-#[test]
-fn test_parse_problem() {
+fn test_parse_meta() {
     let header = "NAME: berlin52
 TYPE: TSP
 DIMENSION: 52
@@ -484,11 +434,10 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     //on the header data. At the moment we are making every section optional.
     //So required sections are able to be ommitted and unrelated/nonsensical sections are
     //allowed, which is bad.
-    let coord_parser = get_2d_coord;
     let edge_parser = match header.edge_data_format {
         Some(EdgeDataFormat::ADJ_LIST) => parse_adjacency_vec,
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
-        None => parse_edgedata_vec,
+        None => parse_edgedata_vec, //TODO: omit the EDGE_DATA_SECTION if there is no Format for it
     };
     map!(
         input,
