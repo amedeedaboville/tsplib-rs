@@ -287,22 +287,22 @@ fn get_section<'a, T>(
             >> (payload)
     )
 }
+fn parse_node_coord_vec(input: Vec<f32>) -> Option<Coord> {
+    if input.len() != 3 {
+        None
+    } else {
+        Some(Coord(input[0] as i64, n32(input[1]), n32(input[2])))
+    }
+}
+
 fn get_2d_coord(input: &str) -> IResult<&str, Coord> {
-    do_parse!(
-        input,
-        multispace0
-            >> i: digit1
-            >> multispace1
-            >> x: float
-            >> multispace1
-            >> y: float
-            >> (Coord(i.parse().unwrap(), n32(x), n32(y)))
-    )
+    map_opt!(input, numbers_on_line, parse_node_coord_vec)
 }
 
 #[test]
 fn test_2d_coords() {
-    let input = " 1 1.0 3.0";
+    let input = "1 1.0 3.0";
+    assert_eq!(numbers_on_line(input), Ok(("", vec![1.0, 1.0, 3.0])));
     assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
     let input2 = "1 1.0 3.0";
     assert_eq!(get_2d_coord(input), Ok(("", Coord(1, n32(1.0), n32(3.0)))));
@@ -379,7 +379,7 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
         input,
         permutation!(
             call!(get_section, "DEPOT_SECTION", digit1)?,
-            call!(get_section, "NODE_COORD_SECTION", numbers_on_line)
+            call!(get_section, "NODE_COORD_SECTION", get_2d_coord)
         ),
         |x| {
             FullProblem {
