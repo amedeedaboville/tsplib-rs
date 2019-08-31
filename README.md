@@ -16,14 +16,16 @@ Another future wishlist item would be to be able to compile the entire TSPLIB li
 At the moment it should only be able to parse simple TSP, euclidean 2d programs. There are a few
 corners that have been cut in the other implementations.
 
-
-Project Structure
+Quickstart
 ---
-This is a library crate.
+```
+use tsplib::parse_whole_problem;
+use std::fs;
 
-`lib.rs` contains the data types and parsing functionality. 
-
-You'll want to import `parse_full_problem` and it will return an Option<TSPLProblem>.
+let filename = "tests/testdata/berlin52.tsp";
+let file_contents = fs::read_to_string(filename).unwrap();
+let problem = parse_whole_problem(&file_contents).unwrap().1;
+```
 
 Notes
 -----
