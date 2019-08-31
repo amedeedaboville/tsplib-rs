@@ -4,10 +4,10 @@ use std::fs;
 use tsplib::*;
 
 #[test]
-fn it_can_parse_berlin_52() {
+fn berlin52() {
     let filename = "tests/testdata/berlin52.tsp";
     let file_contents = fs::read_to_string(filename).unwrap();
-    let parsed = parse_whole_problem(&file_contents);
+    let parsed = parse_whole_problem(&file_contents).unwrap().1;
     let mut t = TSPLData::empty();
     let header = TSPLMeta {
         comment: "52 locations in Berlin (Groetschel)".to_string(),
@@ -77,13 +77,10 @@ fn it_can_parse_berlin_52() {
     ]);
     assert_eq!(
         parsed,
-        Ok((
-            "",
-            FullProblem {
-                header: header,
-                data: t,
-            }
-        ))
+        FullProblem {
+            header: header,
+            data: t,
+        }
     );
 }
 
@@ -91,7 +88,7 @@ fn it_can_parse_berlin_52() {
 fn gr17() {
     let filename = "tests/testdata/gr17.tsp";
     let file_contents = fs::read_to_string(filename).unwrap();
-    let parsed = parse_whole_problem(&file_contents);
+    let parsed = parse_whole_problem(&file_contents).unwrap().1;
     let mut t = TSPLData::empty();
     let header = TSPLMeta {
         comment: "17-city problem (Groetschel)".to_string(),
@@ -117,13 +114,10 @@ fn gr17() {
     ]));
     assert_eq!(
         parsed,
-        Ok((
-            "",
-            FullProblem {
-                header: header,
-                data: t,
-            }
-        ))
+        FullProblem {
+            header: header,
+            data: t,
+        }
     );
 }
 
@@ -131,7 +125,7 @@ fn gr17() {
 fn bays29() {
     let filename = "tests/testdata/bays29.tsp";
     let file_contents = fs::read_to_string(filename).unwrap();
-    let parsed = parse_whole_problem(&file_contents);
+    let parsed = parse_whole_problem(&file_contents).unwrap().1;
     let mut t = TSPLData::empty();
     let header = TSPLMeta {
         comment: "29 cities in Bavaria, street distances (Groetschel,Juenger,Reinelt)".to_string(),
@@ -225,12 +219,9 @@ fn bays29() {
     ]);
     assert_eq!(
         parsed,
-        Ok((
-            "",
-            FullProblem {
-                header: header,
-                data: t,
-            }
-        ))
+        FullProblem {
+            header: header,
+            data: t,
+        }
     );
 }
