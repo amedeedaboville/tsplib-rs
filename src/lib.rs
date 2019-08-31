@@ -1,6 +1,7 @@
 use noisy_float::prelude::*;
 #[macro_use]
 extern crate nom;
+use nom::bytes::complete::is_not;
 use nom::character::complete::*;
 use nom::number::complete::*;
 use nom::{Err, IResult};
@@ -10,33 +11,34 @@ extern crate strum_macros;
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Display};
 //use std::result::Result;
+use std::fs;
 use strum::IntoEnumIterator;
 
 #[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Coord(i64, N32, N32);
+pub struct Coord(pub i64, pub N32, pub N32);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Demand(u32, u32);
+pub struct Demand(pub u32, pub u32);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct FullProblem {
-    header: TSPLMeta,
-    data: TSPLData,
+pub struct FullProblem {
+    pub header: TSPLMeta,
+    pub data: TSPLData,
 }
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct TSPLData {
-    node_coordinates: Option<Vec<Coord>>,
-    depots: Option<Vec<usize>>,
-    demands: Option<Vec<Demand>>,
-    edges: Option<Vec<EdgeData>>,
-    fixed_edges: Option<EdgeList>,
-    display_data: Option<Vec<Coord>>,
-    tours: Option<Vec<Tour>>,
-    edge_weights: Option<EdgeWeightData>,
+pub struct TSPLData {
+    pub node_coordinates: Option<Vec<Coord>>,
+    pub depots: Option<Vec<usize>>,
+    pub demands: Option<Vec<Demand>>,
+    pub edges: Option<Vec<EdgeData>>,
+    pub fixed_edges: Option<EdgeList>,
+    pub display_data: Option<Vec<Coord>>,
+    pub tours: Option<Vec<Tour>>,
+    pub edge_weights: Option<EdgeWeightData>,
 }
 impl TSPLData {
-    fn empty() -> TSPLData {
+    pub fn empty() -> TSPLData {
         TSPLData {
             node_coordinates: None,
             depots: None,
@@ -49,53 +51,53 @@ impl TSPLData {
         }
     }
 }
-type Edge = (usize, usize);
-type EdgeList = Vec<Edge>;
-type EdgeWeight = u32;
-type EdgeWeightList = Vec<EdgeWeight>;
-type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
-type Tour = Vec<usize>;
+pub type Edge = (usize, usize);
+pub type EdgeList = Vec<Edge>;
+pub type EdgeWeight = u32;
+pub type EdgeWeightList = Vec<EdgeWeight>;
+pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
+pub type Tour = Vec<usize>;
 /// Holds edge information, either in the edge list or adjacency list format.
 /// The Adjacency list version is a List of N elements, each of which is a list of
 /// connections. Non-connected nodes are still counted as empty lists.
 ///
-type Adj = Vec<usize>;
-type AdjList = Vec<Adj>;
+pub type Adj = Vec<usize>;
+pub type AdjList = Vec<Adj>;
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum EdgeData {
+pub enum EdgeData {
     Edge(Edge),
     Adj(Adj),
 }
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum EdgeWeightData {
+pub enum EdgeWeightData {
     FUNCTION(Vec<(N32, N32)>),
-    FULL_MATRIX(EdgeWeightMatrix),
-    UPPER_ROW(EdgeWeightMatrix),
-    LOWER_ROW(EdgeWeightMatrix),
-    UPPER_DIAG_ROW(EdgeWeightMatrix),
-    LOWER_DIAG_ROW(EdgeWeightMatrix),
-    UPPER_COL(EdgeWeightMatrix),
-    LOWER_COL(EdgeWeightMatrix),
-    UPPER_DIAG_COL(EdgeWeightMatrix),
-    LOWER_DIAG_COL(EdgeWeightMatrix),
+    FULL_MATRIX(EdgeWeightList),
+    UPPER_ROW(EdgeWeightList),
+    LOWER_ROW(EdgeWeightList),
+    UPPER_DIAG_ROW(EdgeWeightList),
+    LOWER_DIAG_ROW(EdgeWeightList),
+    UPPER_COL(EdgeWeightList),
+    LOWER_COL(EdgeWeightList),
+    UPPER_DIAG_COL(EdgeWeightList),
+    LOWER_DIAG_COL(EdgeWeightList),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct TSPLMeta {
-    name: String,
-    problem_type: ProblemType,
-    comment: String,
-    dimension: i64,
-    capacity: Option<u64>,
-    edge_weight_type: EdgeWeightType,
-    edge_weight_format: Option<EdgeWeightFormat>,
-    edge_data_format: Option<EdgeDataFormat>,
-    node_coord_type: NodeCoordType,
-    display_data_type: DisplayDataType,
+pub struct TSPLMeta {
+    pub name: String,
+    pub problem_type: ProblemType,
+    pub comment: String,
+    pub dimension: i64,
+    pub capacity: Option<u64>,
+    pub edge_weight_type: EdgeWeightType,
+    pub edge_weight_format: Option<EdgeWeightFormat>,
+    pub edge_data_format: Option<EdgeDataFormat>,
+    pub node_coord_type: NodeCoordType,
+    pub display_data_type: DisplayDataType,
 }
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum ProblemType {
+pub enum ProblemType {
     TSP,
     ATSP,
     SOP,
@@ -105,7 +107,7 @@ enum ProblemType {
 }
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum EdgeWeightType {
+pub enum EdgeWeightType {
     EXPLICIT,
     EUC_2D,
     EUC_3D,
@@ -123,7 +125,7 @@ enum EdgeWeightType {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum EdgeWeightFormat {
+pub enum EdgeWeightFormat {
     FUNCTION,
     FULL_MATRIX,
     UPPER_ROW,
@@ -138,14 +140,14 @@ enum EdgeWeightFormat {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum EdgeDataFormat {
+pub enum EdgeDataFormat {
     EDGE_LIST,
     ADJ_LIST,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum NodeCoordType {
+pub enum NodeCoordType {
     TWOD_COORDS,
     THREED_COORDS,
     NO_COORDS,
@@ -153,7 +155,7 @@ enum NodeCoordType {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-enum DisplayDataType {
+pub enum DisplayDataType {
     COORDS_DISPLAY,
     TWOD_DISPLAY,
     NO_DISPLAY,
@@ -170,6 +172,10 @@ fn test_numbers_on_line() {
     );
 }
 
+fn not_space(s: &str) -> IResult<&str, &str> {
+    is_not(" \t\r\n")(s)
+}
+
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
         tag!(key) >>
@@ -177,7 +183,7 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
         space0 >>
         value: not_line_ending >>
         opt!(line_ending) >>
-        (value)
+        (value.trim_end())
     )
 );
 
@@ -196,7 +202,7 @@ where
 {
     kv(input, key).and_then(|(i, v)| match str::parse::<T>(v) {
         Ok(tv) => Ok((i, tv)),
-        Err(a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo))),
+        Err(_a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo))),
     })
 }
 #[test]
@@ -285,14 +291,16 @@ where
         input,
         tag!(section_title)
             >> line_ending
-            >> payload: separated_list!(line_ending, map_opt!(numbers_on_line, line_parser))
-            >> line_ending
+            >> space0
+            >> payload: separated_list!(multispace1, map_opt!(numbers_on_line, line_parser))
+            >> space0
+            >> opt!(line_ending)
             >> opt!(complete!(tag!("EOF\n")))
             >> (payload)
     );
     println!(
-        "Get section for title {:} got {:?}, returning {:?}",
-        section_title, input, out
+        "Get section for title {:}, returning {:?}",
+        section_title, out
     );
     out
 }
@@ -442,7 +450,7 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     map!(
         input,
         permutation!(
-            call!(get_section, "NODE_COORD_SECTION", parse_coord_vec)?,
+            complete!(call!(get_section, "NODE_COORD_SECTION", parse_coord_vec))?,
             complete!(call!(get_section, "DEPOT_SECTION", parse_depot_vec))?,
             complete!(call!(get_section, "DEMAND_SECTION", parse_demand_vec))?,
             complete!(call!(get_section, "EDGE_DATA_SECTION", edge_parser))?,
@@ -455,12 +463,34 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
             println!("Parsed successfully got {:?}", x);
             FullProblem {
                 header: header.clone(),
-                data: build_data(x),
+                data: build_data(&header, x),
             }
         }
     )
 }
+
+fn combine_edge_weights(format: &EdgeWeightFormat, data: &EdgeWeightMatrix) -> EdgeWeightData {
+    let mut combined: EdgeWeightList = Vec::new();
+    for row in data.iter() {
+        combined.extend(row);
+    }
+
+    match format {
+        //TODO: Figure out what to do with FUNCTION. Probably return an error
+        EdgeWeightFormat::FUNCTION => EdgeWeightData::FULL_MATRIX(combined), 
+        EdgeWeightFormat::FULL_MATRIX => EdgeWeightData::FULL_MATRIX(combined),
+        EdgeWeightFormat::UPPER_ROW => EdgeWeightData::UPPER_ROW(combined),
+        EdgeWeightFormat::LOWER_ROW => EdgeWeightData::LOWER_ROW(combined),
+        EdgeWeightFormat::UPPER_DIAG_ROW => EdgeWeightData::UPPER_DIAG_ROW(combined),
+        EdgeWeightFormat::LOWER_DIAG_ROW => EdgeWeightData::LOWER_DIAG_ROW(combined),
+        EdgeWeightFormat::UPPER_COL => EdgeWeightData::UPPER_COL(combined),
+        EdgeWeightFormat::LOWER_COL => EdgeWeightData::LOWER_COL(combined),
+        EdgeWeightFormat::UPPER_DIAG_COL => EdgeWeightData::UPPER_DIAG_COL(combined),
+        EdgeWeightFormat::LOWER_DIAG_COL => EdgeWeightData::LOWER_DIAG_COL(combined),
+    }
+}
 fn build_data(
+    header: &TSPLMeta,
     (coords, depots, demands, edge_datas, fixed_edges, ddts, tours, edge_weights): (
         Option<Vec<Coord>>,
         Option<Vec<usize>>,
@@ -477,7 +507,8 @@ fn build_data(
         depots: depots,
         demands: demands,
         display_data: ddts,
-        edge_weights: edge_weights.map(|e| EdgeWeightData::FULL_MATRIX(e)),
+        edge_weights: edge_weights
+            .map(|e| combine_edge_weights(header.edge_weight_format.as_ref().unwrap(), &e)),
         edges: edge_datas,
         fixed_edges: fixed_edges,
         tours: tours,
@@ -507,6 +538,7 @@ DISPLAY_DATA_SECTION
 3 97.0 74.0
 EOF
 ";
+
     let mut t = TSPLData::empty();
     t.node_coordinates = Some(vec![
         Coord(1, n32(565.0), n32(575.0)),
@@ -530,6 +562,17 @@ EOF
     );
 }
 
-fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
+pub fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
     parse_header_perm(input).and_then(|(input, header)| parse_data_section(input, header))
+}
+
+fn parse_whole_problem_opt(input: String) -> Option<FullProblem> {
+    let r_tuple = parse_whole_problem(&input);
+    r_tuple.map(|x| x.1).ok()
+}
+
+pub fn parse_file_opt(filename: &str) -> Option<FullProblem> {
+    fs::read_to_string(filename)
+        .ok()
+        .and_then(parse_whole_problem_opt)
 }
