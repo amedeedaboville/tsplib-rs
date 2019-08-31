@@ -32,7 +32,7 @@ Notes
 Built using Nom, the parser combinator library.
 
 The types are a mess at the moment and need to be sorted out.
-In the spect
+My interpretation of the spec is:
 
 * "integers" that are indices are represented as `usize`.
 * "integers" that are positive numbers are u32.
