@@ -1,7 +1,7 @@
 Tsplib-rs
 ---------
 
-An in progress Rust parser for TSPLIB problems.
+An in progress Rust parser for TSPLIB problems and my first Rust probject.
 
 The goal for testing is to have the tests be "take all the tsplib files and parse them without error". 
 
