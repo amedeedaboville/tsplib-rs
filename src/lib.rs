@@ -276,7 +276,7 @@ fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
         Some(input[0] as usize)
     }
 }
-fn parse_coord_vec(input: Vec<f32>) -> Option<Coord2> {
+fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord2> {
     match input.len() {
         3 => Some(Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
         _ => None
@@ -352,7 +352,7 @@ fn test_2d_coords() {
     let input_vec = vec![1.0, 1.0, 3.0];
     assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
     assert_eq!(
-        parse_coord_vec(input_vec),
+        parse_coord2_vec(input_vec),
         Some(Coord2(1, n32(1.0), n32(3.0)))
     );
 }
@@ -414,12 +414,12 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     map!(
         input,
         permutation!(
-            complete!(call!(get_section, "NODE_COORD_SECTION", parse_coord_vec))?,
+            complete!(call!(get_section, "NODE_COORD_SECTION", parse_coord2_vec))?,
             complete!(call!(get_section, "DEPOT_SECTION", parse_depot_vec))?,
             complete!(call!(get_section, "DEMAND_SECTION", parse_demand_vec))?,
             complete!(call!(get_section, "EDGE_DATA_SECTION", edge_parser))?,
             complete!(call!(get_section, "FIXED_EDGES_SECTION", parse_edge_vec))?,
-            complete!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord_vec))?, //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
+            complete!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord2_vec))?, //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
             complete!(call!(get_section, "TOUR_SECTION", parse_tour_vec))?,
             complete!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec))?
         ),
