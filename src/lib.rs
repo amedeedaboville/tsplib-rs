@@ -233,9 +233,11 @@ fn build_header(
         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
     }
 }
+
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
     separated_list!(input, space1, float)
 }
+
 #[test]
 fn test_numbers_on_line() {
     assert_eq!(
@@ -270,10 +272,9 @@ where
     out
 }
 fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
-    if input.len() != 1 {
-        None
-    } else {
-        Some(input[0] as usize)
+    match input.len() {
+        1 => Some(input[0] as usize),
+        _ => None
     }
 }
 fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord2> {
@@ -284,39 +285,35 @@ fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord2> {
 }
 
 fn parse_demand_vec(input: Vec<f32>) -> Option<Demand> {
-    if input.len() != 2 {
-        None
-    } else {
-        Some(Demand(input[0] as u32, input[1] as u32))
+    match input.len() {
+        2 => Some(Demand(input[0] as u32, input[1] as u32)),
+        _ => None
     }
 }
 
 fn parse_edge_vec(input: Vec<f32>) -> Option<Edge> {
-    if input.len() != 2 {
-        None
-    } else {
-        Some((input[0] as usize, input[1] as usize))
+    match input.len() {
+        2 => Some((input[0] as usize, input[1] as usize)),
+        _ => None
     }
 }
 
 fn parse_tour_vec(input: Vec<f32>) -> Option<Tour> {
-    if input.is_empty() {
-        None
-    } else {
-        Some(
+    match input.len() {
+        0 => None,
+        _ => Some(
             input
-                .into_iter()
-                .map(|i| i as usize)
-                .collect::<Vec<usize>>(),
-        )
+            .into_iter()
+            .map(|i| i as usize)
+            .collect::<Vec<usize>>(),
+            )
     }
 }
 
 fn parse_weights_vec(input: Vec<f32>) -> Option<EdgeWeightList> {
-    if input.is_empty() {
-        None
-    } else {
-        Some(
+    match input.len() {
+        0 => None,
+        _ => Some(
             input
                 .into_iter()
                 .map(|i| i as EdgeWeight)
@@ -326,23 +323,21 @@ fn parse_weights_vec(input: Vec<f32>) -> Option<EdgeWeightList> {
 }
 
 fn parse_edgedata_vec(input: Vec<f32>) -> Option<EdgeData> {
-    if input.len() != 2 {
-        None
-    } else {
-        Some(EdgeData::Edge((input[0] as usize, input[1] as usize)))
+    match input.len() {
+        2 => Some(EdgeData::Edge((input[0] as usize, input[1] as usize))),
+        _ => None
     }
 }
 
 fn parse_adjacency_vec(input: Vec<f32>) -> Option<EdgeData> {
-    if input.len() < 2 {
-        None
-    } else {
-        Some(EdgeData::Adj(
-            input
+    match input.len() {
+        len if len < 2 => None,
+        _ => Some(EdgeData::Adj(
+                input
                 .into_iter()
                 .map(|i| i as usize)
                 .collect::<Vec<usize>>(),
-        ))
+                ))
     }
 }
 
