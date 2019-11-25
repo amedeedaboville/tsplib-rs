@@ -3,16 +3,16 @@
 use noisy_float::prelude::*;
 #[macro_use]
 extern crate nom;
-use nom::character::complete::*;
-use nom::number::complete::*;
+use nom::character::complete::{line_ending, not_line_ending, space0, space1, multispace1};
+use nom::number::complete::float;
 use nom::{Err, IResult};
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
+use strum::IntoEnumIterator;
 use std::cmp::PartialEq;
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::fs;
-
 
 //We break down the parsing into two steps, parsing the header and then
 //the problem body based on the metadata in the header:
@@ -38,12 +38,12 @@ pub struct TSPLMeta {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TSPLData {
-    pub node_coordinates: Option<Vec<Coord>>,
+    pub node_coordinates: Option<Vec<Coord2>>,
     pub depots: Option<Vec<usize>>,
     pub demands: Option<Vec<Demand>>,
     pub edges: Option<Vec<EdgeData>>,
     pub fixed_edges: Option<EdgeList>,
-    pub display_data: Option<Vec<Coord>>,
+    pub display_data: Option<Vec<Coord2>>,
     pub tours: Option<Vec<Tour>>,
     pub edge_weights: Option<EdgeWeightData>,
 }
@@ -62,7 +62,7 @@ impl TSPLData {
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Coord(pub i64, pub N32, pub N32);
+pub struct Coord2(pub i64, pub N32, pub N32);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Demand(pub u32, pub u32);
@@ -73,17 +73,18 @@ pub type EdgeWeight = u32;
 pub type EdgeWeightList = Vec<EdgeWeight>;
 pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
 pub type Tour = Vec<usize>;
+
 /// Holds edge information, either in the edge list or adjacency list format.
-/// The Adjacency list version is a List of N elements, each of which is a list of
+/// The adjacency list version is a List of N elements, each of which is a list of
 /// connections. Non-connected nodes are still counted as empty lists.
-///
-pub type Adj = Vec<usize>;
-pub type AdjList = Vec<Adj>;
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EdgeData {
     Edge(Edge),
     Adj(Adj),
 }
+pub type Adj = Vec<usize>;
+pub type AdjList = Vec<Adj>;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EdgeWeightData {
     FUNCTION(Vec<(N32, N32)>),
@@ -158,17 +159,8 @@ pub enum DisplayDataType {
     NO_DISPLAY,
 }
 
-fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
-    separated_list!(input, space1, float)
-}
-#[test]
-fn test_numbers_on_line() {
-    assert_eq!(
-        numbers_on_line("1.2 2 3 4"),
-        Ok(("", vec![1.2, 2.0, 3.0, 4.0]))
-    );
-}
-
+//Gives us a parser called kv() that takes a key to look for, and will return
+//the value in KEY: VALUE
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
         tag!(key) >>
@@ -180,16 +172,6 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
     )
 );
 
-#[cfg(test)]
-fn test_kv<'a, G: std::str::FromStr + Display + Debug + PartialEq + Clone + 'a>(
-    key: &str,
-    value: G,
-) {
-    let input = format!("{}: {}\n", key, value);
-    let output: IResult<&str, G> = kv_parse(&input, key);
-    assert_eq!(output, Ok(("", value)));
-}
-
 fn kv_parse<'a, T>(input: &'a str, key: &'a str) -> IResult<&'a str, T>
 where
     T: std::str::FromStr,
@@ -199,40 +181,37 @@ where
         Err(_a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo))),
     })
 }
-#[test]
-fn test_some_kvs() {
-    test_kv("NAME", "some_name".to_string());
-    test_kv(
-        "COMMENT",
-        "My favorite TSP instance: Minimum tour around all of my friend's fridges".to_string(),
-    );
-}
 
-#[test]
-fn test_iterable_enums() {
-    for ewt in EdgeWeightType::iter() {
-        test_kv("EDGE_WEIGHT_TYPE", ewt);
-    }
-    for ewf in EdgeWeightFormat::iter() {
-        test_kv("EDGE_WEIGHT_FORMAT", ewf);
-    }
-    for edf in EdgeDataFormat::iter() {
-        test_kv("EDGE_DATA_FORMAT", edf);
-    }
-    for nct in NodeCoordType::iter() {
-        test_kv("NODE_COORD_TYPE", nct);
-    }
-    for ddt in DisplayDataType::iter() {
-        test_kv("DISPLAY_DATA_TYPE", ddt);
-    }
+//TSPLIB defines all of these key values in its header, and they can be set 
+//in any order.
+//Cool note: the way we pass the result of permutation! to build_header tells each
+//kv_parse! the type of each key:value (eg ProblemType), and calls its 
+//fromStr automatically.
+fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
+    map!(
+        input,
+        permutation!(
+            call!(kv_parse, "NAME")?,
+            call!(kv_parse, "TYPE"),
+            call!(kv_parse, "COMMENT")?,
+            call!(kv_parse, "DIMENSION"),
+            call!(kv_parse, "EDGE_WEIGHT_TYPE")?,
+            call!(kv_parse, "CAPACITY")?,
+            call!(kv_parse, "EDGE_WEIGHT_FORMAT")?,
+            call!(kv_parse, "EDGE_DATA_FORMAT")?,
+            call!(kv_parse, "DISPLAY_DATA_TYPE")?,
+            call!(kv_parse, "NODE_COORD_TYPE")?
+        ),
+        build_header
+    )
 }
 
 fn build_header(
     (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
         Option<String>,
-        Option<ProblemType>,
+        ProblemType,
         Option<String>,
-        Option<u32>,
+        u32,
         Option<EdgeWeightType>,
         Option<u32>,
         Option<EdgeWeightFormat>,
@@ -243,9 +222,9 @@ fn build_header(
 ) -> TSPLMeta {
     TSPLMeta {
         name: name.unwrap_or_else(|| "".to_string()),
-        problem_type: problem_type.unwrap(),
+        problem_type,
         comment: comment.unwrap_or_else(|| "".to_string()),
-        dimension: dimension.unwrap(),
+        dimension,
         capacity,
         edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
         edge_data_format: edf,
@@ -254,23 +233,15 @@ fn build_header(
         display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
     }
 }
-fn parse_header_perm(input: &str) -> IResult<&str, TSPLMeta> {
-    map!(
-        input,
-        permutation!(
-            call!(kv_parse, "NAME")?,
-            call!(kv_parse, "TYPE")?,
-            call!(kv_parse, "COMMENT")?,
-            call!(kv_parse, "DIMENSION")?,
-            call!(kv_parse, "EDGE_WEIGHT_TYPE")?,
-            call!(kv_parse, "CAPACITY")?,
-            call!(kv_parse, "EDGE_WEIGHT_FORMAT")?,
-            call!(kv_parse, "EDGE_DATA_FORMAT")?,
-            call!(kv_parse, "DISPLAY_DATA_TYPE")?,
-            opt!(call!(kv_parse, "NODE_COORD_TYPE"))
-        ),
-        build_header
-    )
+fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
+    separated_list!(input, space1, float)
+}
+#[test]
+fn test_numbers_on_line() {
+    assert_eq!(
+        numbers_on_line("1.2 2 3 4"),
+        Ok(("", vec![1.2, 2.0, 3.0, 4.0]))
+    );
 }
 
 fn get_section<'a, T>(
@@ -305,11 +276,10 @@ fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
         Some(input[0] as usize)
     }
 }
-fn parse_coord_vec(input: Vec<f32>) -> Option<Coord> {
-    if input.len() != 3 {
-        None
-    } else {
-        Some(Coord(input[0] as i64, n32(input[1]), n32(input[2])))
+fn parse_coord_vec(input: Vec<f32>) -> Option<Coord2> {
+    match input.len() {
+        3 => Some(Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
+        _ => None
     }
 }
 
@@ -383,7 +353,7 @@ fn test_2d_coords() {
     assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
     assert_eq!(
         parse_coord_vec(input_vec),
-        Some(Coord(1, n32(1.0), n32(3.0)))
+        Some(Coord2(1, n32(1.0), n32(3.0)))
     );
 }
 
@@ -407,7 +377,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_header_perm(header), Ok((" ", parsed)))
+    assert_eq!(parse_header(header), Ok((" ", parsed)))
 }
 #[test]
 fn test_parse_problem_works_with_missing_data() {
@@ -428,7 +398,7 @@ EDGE_WEIGHT_TYPE: EUC_2D
         edge_weight_format: None,
         node_coord_type: NodeCoordType::NO_COORDS,
     };
-    assert_eq!(parse_header_perm(header), Ok((" ", parsed)))
+    assert_eq!(parse_header(header), Ok((" ", parsed)))
 }
 
 fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, FullProblem> {
@@ -486,12 +456,12 @@ fn combine_edge_weights(format: &EdgeWeightFormat, data: &EdgeWeightMatrix) -> E
 fn build_data(
     header: &TSPLMeta,
     (coords, depots, demands, edge_datas, fixed_edges, ddts, tours, edge_weights): (
-        Option<Vec<Coord>>,
+        Option<Vec<Coord2>>,
         Option<Vec<usize>>,
         Option<Vec<Demand>>,
         Option<Vec<EdgeData>>,
         Option<Vec<Edge>>,
-        Option<Vec<Coord>>,
+        Option<Vec<Coord2>>,
         Option<Vec<Tour>>,
         Option<Vec<EdgeWeightList>>,
     ),
@@ -512,6 +482,46 @@ fn build_data(
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
+    use std::fmt::{Debug, Display};
+
+    fn test_kv<'a, G: std::str::FromStr + Display + Debug + PartialEq + Clone + 'a>(
+        key: &str,
+        value: G,
+    ) {
+        let input = format!("{}: {}\n", key, value);
+        let output: IResult<&str, G> = kv_parse(&input, key);
+        assert_eq!(output, Ok(("", value)));
+    }
+
+    //Will give kv_parse a key and a value separated by a : and see if it roundtrips ok.
+    #[test]
+    fn test_some_kvs() {
+        test_kv("NAME", "some_name".to_string());
+        test_kv(
+            "COMMENT",
+            "My favorite TSP instance: Minimum tour around all of my friend's fridges".to_string(),
+        );
+    }
+
+    #[test]
+    fn test_iterable_enums() {
+        for ewt in EdgeWeightType::iter() {
+            test_kv("EDGE_WEIGHT_TYPE", ewt);
+        }
+        for ewf in EdgeWeightFormat::iter() {
+            test_kv("EDGE_WEIGHT_FORMAT", ewf);
+        }
+        for edf in EdgeDataFormat::iter() {
+            test_kv("EDGE_DATA_FORMAT", edf);
+        }
+        for nct in NodeCoordType::iter() {
+            test_kv("NODE_COORD_TYPE", nct);
+        }
+        for ddt in DisplayDataType::iter() {
+            test_kv("DISPLAY_DATA_TYPE", ddt);
+        }
+    }
+
 
     #[test]
     fn test_parse_data_section() {
@@ -540,14 +550,14 @@ EOF
 
         let mut t = TSPLData::empty();
         t.node_coordinates = Some(vec![
-                                  Coord(1, n32(565.0), n32(575.0)),
-                                  Coord(2, n32(25.0), n32(185.0)),
-                                  Coord(3, n32(345.0), n32(750.0)),
+                                  Coord2(1, n32(565.0), n32(575.0)),
+                                  Coord2(2, n32(25.0), n32(185.0)),
+                                  Coord2(3, n32(345.0), n32(750.0)),
         ]);
         t.display_data = Some(vec![
-                              Coord(1, n32(8.0), n32(124.0)),
-                              Coord(2, n32(125.0), n32(80.0)),
-                              Coord(3, n32(97.0), n32(74.0)),
+                              Coord2(1, n32(8.0), n32(124.0)),
+                              Coord2(2, n32(125.0), n32(80.0)),
+                              Coord2(3, n32(97.0), n32(74.0)),
         ]);
         assert_eq!(
             parse_data_section(ncs, header.clone()),
@@ -563,7 +573,7 @@ EOF
 }
 
 pub fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
-    parse_header_perm(input).and_then(|(input, header)| parse_data_section(input, header))
+    parse_header(input).and_then(|(input, header)| parse_data_section(input, header))
 }
 
 fn parse_whole_problem_opt(input: String) -> Option<FullProblem> {

@@ -6,10 +6,9 @@ edition = "2018"
 
 [dependencies]
 noisy_float = "0.1.10"
-regex = "1.1.6"
-#nom = { git = "https://github.com/Geal/nom", tag = "5.0.0-beta1" }
 nom = "5.0.1"
 strum = "0.15.0"
 strum_macros = "0.15.0"
+
 [dev-dependencies]
 pretty_assertions = "0.6.1"

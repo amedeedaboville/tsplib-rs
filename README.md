@@ -7,7 +7,7 @@ The goal for testing is to have the tests be "take all the tsplib files and pars
 
 A nice little future goal would be able to implement some of the distance functions and be able to transform between
 different input problem representations, eg:
-* the problem is stated as adjacency list but your program takes an adjacency matrix).
+* the problem is stated as adjacency list but your program takes an adjacency matrix.
 * the problem is stated as a complete, euclidean 2d problem but you want to give your program the pre-calculated adjacency list with the right distances
 
 Another future wishlist item would be to be able to compile the entire TSPLIB library into the crate as a feature flag. So you could have
@@ -15,6 +15,14 @@ Another future wishlist item would be to be able to compile the entire TSPLIB li
 
 At the moment it should only be able to parse simple TSP, euclidean 2d programs. There are a few
 corners that have been cut in the other implementations.
+
+
+Features supported
+-------------
+[x] - All Header information
+[x] - Parsing 2d coords
+[x] - Parsing EUC2D problems
+[ ] - Parsing 3d coords
 
 Quickstart
 ---
