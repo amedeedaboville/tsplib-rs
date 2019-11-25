@@ -3,16 +3,16 @@
 use noisy_float::prelude::*;
 #[macro_use]
 extern crate nom;
-use nom::character::complete::{line_ending, not_line_ending, space0, space1, multispace1};
+use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1};
 use nom::number::complete::float;
 use nom::{Err, IResult};
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
-use strum::IntoEnumIterator;
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 use std::fs;
+use strum::IntoEnumIterator;
 
 //We break down the parsing into two steps, parsing the header and then
 //the problem body based on the metadata in the header:
@@ -64,6 +64,9 @@ impl TSPLData {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Coord2(pub i64, pub N32, pub N32);
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Coord3(pub i64, pub N32, pub N32, pub N32);
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Demand(pub u32, pub u32);
 
@@ -75,7 +78,7 @@ pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
 pub type Tour = Vec<usize>;
 
 /// Holds edge information, either in the edge list or adjacency list format.
-/// The adjacency list version is a List of N elements, each of which is a list of
+/// The adjacency list version is a Vec of N elements, each of which is a list of
 /// connections. Non-connected nodes are still counted as empty lists.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EdgeData {
@@ -182,11 +185,11 @@ where
     })
 }
 
-//TSPLIB defines all of these key values in its header, and they can be set 
+//TSPLIB defines all of these key values in its header, and they can be set
 //in any order.
-//Cool note: the way we pass the result of permutation! to build_header tells each
-//kv_parse! the type of each key:value (eg ProblemType), and calls its 
-//fromStr automatically.
+//Cool note: the way we map! the result of permutation! to build_header tells each
+//kv_parse! the type of each key:value (eg ProblemType), and calls its
+//the right string -> Data type conversion automatically.
 fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
         input,
@@ -274,27 +277,39 @@ where
 fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
     match input.len() {
         1 => Some(input[0] as usize),
-        _ => None
+        _ => None,
     }
 }
 fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord2> {
     match input.len() {
         3 => Some(Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
-        _ => None
+        _ => None,
+    }
+}
+
+fn parse_coord3_vec(input: Vec<f32>) -> Option<Coord3> {
+    match input.len() {
+        4 => Some(Coord3(
+            input[0] as i64,
+            n32(input[1]),
+            n32(input[2]),
+            n32(input[3]),
+        )),
+        _ => None,
     }
 }
 
 fn parse_demand_vec(input: Vec<f32>) -> Option<Demand> {
     match input.len() {
         2 => Some(Demand(input[0] as u32, input[1] as u32)),
-        _ => None
+        _ => None,
     }
 }
 
 fn parse_edge_vec(input: Vec<f32>) -> Option<Edge> {
     match input.len() {
         2 => Some((input[0] as usize, input[1] as usize)),
-        _ => None
+        _ => None,
     }
 }
 
@@ -303,10 +318,10 @@ fn parse_tour_vec(input: Vec<f32>) -> Option<Tour> {
         0 => None,
         _ => Some(
             input
-            .into_iter()
-            .map(|i| i as usize)
-            .collect::<Vec<usize>>(),
-            )
+                .into_iter()
+                .map(|i| i as usize)
+                .collect::<Vec<usize>>(),
+        ),
     }
 }
 
@@ -318,14 +333,14 @@ fn parse_weights_vec(input: Vec<f32>) -> Option<EdgeWeightList> {
                 .into_iter()
                 .map(|i| i as EdgeWeight)
                 .collect::<EdgeWeightList>(),
-        )
+        ),
     }
 }
 
 fn parse_edgedata_vec(input: Vec<f32>) -> Option<EdgeData> {
     match input.len() {
         2 => Some(EdgeData::Edge((input[0] as usize, input[1] as usize))),
-        _ => None
+        _ => None,
     }
 }
 
@@ -333,11 +348,11 @@ fn parse_adjacency_vec(input: Vec<f32>) -> Option<EdgeData> {
     match input.len() {
         len if len < 2 => None,
         _ => Some(EdgeData::Adj(
-                input
+            input
                 .into_iter()
                 .map(|i| i as usize)
                 .collect::<Vec<usize>>(),
-                ))
+        )),
     }
 }
 
@@ -399,13 +414,22 @@ EDGE_WEIGHT_TYPE: EUC_2D
 fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, FullProblem> {
     //Here we should be building a list of sections that we are expecting based
     //on the header data. At the moment we are making every section optional.
-    //So required sections are able to be ommitted and unrelated/nonsensical sections are
-    //allowed, which is bad.
+    //So required sections are able to be omitted and unrelated/nonsensical sections are
+    //allowed.
+    //Also, the header is fully cloned, because I couldn't figure out the lifetimes.
     let edge_parser = match header.edge_data_format {
         Some(EdgeDataFormat::ADJ_LIST) => parse_adjacency_vec,
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
         None => parse_edgedata_vec, //TODO: omit the EDGE_DATA_SECTION if there is no Format for it
     };
+    //This doesn't work because the return types parse_coord2 and parse3 are different.
+    //So we either make COORD an enum variant, which I wouldn't like, because it feels like it would
+    //allow polymorphic lists.
+    // let coord_parser = match header.node_coord_type {
+    //     NodeCoordType::TWOD_COORDS => parse_coord2_vec,
+    //     NodeCoordType::THREED_COORDS => parse_coord3_vec,
+    //     NodeCoordType::NO_COORDS => parse_coord2_vec, //TODO: same here, omit looking for node_coords
+    // };
     map!(
         input,
         permutation!(
@@ -428,29 +452,42 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     )
 }
 
-fn combine_edge_weights(format: &EdgeWeightFormat, data: &EdgeWeightMatrix) -> EdgeWeightData {
+fn combine_edge_weights(
+    format: &EdgeWeightFormat,
+    data: &EdgeWeightMatrix,
+) -> Option<EdgeWeightData> {
     let mut combined: EdgeWeightList = Vec::new();
     for row in data.iter() {
         combined.extend(row);
     }
+    //TODO this function isn't very good. It combines the lists of lists into one.
+    //Basically it compiles but doesn't help at all, unless you have a FULL_MATRIX, which might be
+    //easier to recover
+    //It would be so much better if we had a proper data type for EdgeWeightData.
+    //At the very least here we should untangle all different data formats and build a full matrix.
+    //Most TSP problems are small enough that building a full matrix isn't that inconvenient, and
+    //it fits a superset of most users' needs. If you want, you can thin it out and garbage collect it
+    //after the fact.
 
     match format {
-        //TODO: Figure out what to do with FUNCTION. Probably return an error
-        EdgeWeightFormat::FUNCTION => EdgeWeightData::FULL_MATRIX(combined), 
-        EdgeWeightFormat::FULL_MATRIX => EdgeWeightData::FULL_MATRIX(combined),
-        EdgeWeightFormat::UPPER_ROW => EdgeWeightData::UPPER_ROW(combined),
-        EdgeWeightFormat::LOWER_ROW => EdgeWeightData::LOWER_ROW(combined),
-        EdgeWeightFormat::UPPER_DIAG_ROW => EdgeWeightData::UPPER_DIAG_ROW(combined),
-        EdgeWeightFormat::LOWER_DIAG_ROW => EdgeWeightData::LOWER_DIAG_ROW(combined),
-        EdgeWeightFormat::UPPER_COL => EdgeWeightData::UPPER_COL(combined),
-        EdgeWeightFormat::LOWER_COL => EdgeWeightData::LOWER_COL(combined),
-        EdgeWeightFormat::UPPER_DIAG_COL => EdgeWeightData::UPPER_DIAG_COL(combined),
-        EdgeWeightFormat::LOWER_DIAG_COL => EdgeWeightData::LOWER_DIAG_COL(combined),
+        //If we were given some EDGE_WEIGHT_DATA, but the header specified FUNCTION as EDGE_WEIGHT_FORMAT,
+        //we throw that data away.
+        EdgeWeightFormat::FUNCTION => None,
+        EdgeWeightFormat::FULL_MATRIX => Some(EdgeWeightData::FULL_MATRIX(combined)),
+        EdgeWeightFormat::UPPER_ROW => Some(EdgeWeightData::UPPER_ROW(combined)),
+        EdgeWeightFormat::LOWER_ROW => Some(EdgeWeightData::LOWER_ROW(combined)),
+        EdgeWeightFormat::UPPER_DIAG_ROW => Some(EdgeWeightData::UPPER_DIAG_ROW(combined)),
+        EdgeWeightFormat::LOWER_DIAG_ROW => Some(EdgeWeightData::LOWER_DIAG_ROW(combined)),
+        EdgeWeightFormat::UPPER_COL => Some(EdgeWeightData::UPPER_COL(combined)),
+        EdgeWeightFormat::LOWER_COL => Some(EdgeWeightData::LOWER_COL(combined)),
+        EdgeWeightFormat::UPPER_DIAG_COL => Some(EdgeWeightData::UPPER_DIAG_COL(combined)),
+        EdgeWeightFormat::LOWER_DIAG_COL => Some(EdgeWeightData::LOWER_DIAG_COL(combined)),
     }
 }
+
 fn build_data(
     header: &TSPLMeta,
-    (coords, depots, demands, edge_datas, fixed_edges, ddts, tours, edge_weights): (
+    (node_coordinates, depots, demands, edges, fixed_edges, display_data, tours, edge_weights): (
         Option<Vec<Coord2>>,
         Option<Vec<usize>>,
         Option<Vec<Demand>>,
@@ -462,13 +499,13 @@ fn build_data(
     ),
 ) -> TSPLData {
     TSPLData {
-        node_coordinates: coords,
+        node_coordinates,
         depots,
         demands,
-        display_data: ddts,
+        display_data,
         edge_weights: edge_weights
-            .map(|e| combine_edge_weights(header.edge_weight_format.as_ref().unwrap(), &e)),
-        edges: edge_datas,
+            .and_then(|e| combine_edge_weights(header.edge_weight_format.as_ref().unwrap(), &e)),
+        edges,
         fixed_edges,
         tours,
     }
@@ -517,7 +554,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn test_parse_data_section() {
         let header = TSPLMeta {
@@ -545,25 +581,25 @@ EOF
 
         let mut t = TSPLData::empty();
         t.node_coordinates = Some(vec![
-                                  Coord2(1, n32(565.0), n32(575.0)),
-                                  Coord2(2, n32(25.0), n32(185.0)),
-                                  Coord2(3, n32(345.0), n32(750.0)),
+            Coord2(1, n32(565.0), n32(575.0)),
+            Coord2(2, n32(25.0), n32(185.0)),
+            Coord2(3, n32(345.0), n32(750.0)),
         ]);
         t.display_data = Some(vec![
-                              Coord2(1, n32(8.0), n32(124.0)),
-                              Coord2(2, n32(125.0), n32(80.0)),
-                              Coord2(3, n32(97.0), n32(74.0)),
+            Coord2(1, n32(8.0), n32(124.0)),
+            Coord2(2, n32(125.0), n32(80.0)),
+            Coord2(3, n32(97.0), n32(74.0)),
         ]);
         assert_eq!(
             parse_data_section(ncs, header.clone()),
             Ok((
-                    "",
-                    FullProblem {
-                        header: header.clone(),
-                        data: t,
-                    }
-               ))
-            );
+                "",
+                FullProblem {
+                    header: header.clone(),
+                    data: t,
+                }
+            ))
+        );
     }
 }
 
