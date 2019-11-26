@@ -1,6 +1,5 @@
 use noisy_float::prelude::*;
-use pretty_assertions::{assert_eq, assert_ne};
-use std::fmt::{Debug, Display};
+use pretty_assertions::assert_eq;
 use std::fs;
 use tsplib::Coord::Coord2;
 use tsplib::*;
@@ -227,7 +226,6 @@ fn bays29() {
         }
     );
 }
-
 
 #[test]
 fn parse_alltsp() {

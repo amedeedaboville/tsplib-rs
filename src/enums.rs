@@ -76,7 +76,8 @@ pub enum EdgeData {
     Adj(Adj),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum ProblemType {
     TSP,
     ATSP,
@@ -85,7 +86,9 @@ pub enum ProblemType {
     CVRP,
     TOUR,
 }
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum EdgeWeightType {
     EXPLICIT,
     EUC_2D,
@@ -102,7 +105,8 @@ pub enum EdgeWeightType {
     SPECIAL,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum EdgeWeightFormat {
     FUNCTION,
     FULL_MATRIX,
@@ -116,20 +120,23 @@ pub enum EdgeWeightFormat {
     LOWER_DIAG_COL,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum EdgeDataFormat {
     EDGE_LIST,
     ADJ_LIST,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum NodeCoordType {
     TWOD_COORDS,
     THREED_COORDS,
     NO_COORDS,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
+#[cfg_attr(test, derive(EnumIter))]
+#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString)]
 pub enum DisplayDataType {
     COORDS_DISPLAY,
     TWOD_DISPLAY,

@@ -1,10 +1,14 @@
 #![allow(non_camel_case_types)]
 
-#[macro_use] extern crate strum_macros;
-#[macro_use] extern crate nom;
+#[macro_use]
+extern crate strum_macros;
+#[macro_use]
+extern crate nom;
 
 use noisy_float::prelude::*;
-use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1, alphanumeric1};
+use nom::character::complete::{
+    alphanumeric1, line_ending, multispace1, not_line_ending, space0, space1,
+};
 use nom::number::complete::double;
 use nom::{Err, IResult};
 use std::fs;
@@ -51,7 +55,7 @@ named_args!(kv_single<'a>(key: &'a str)<&'a str, &'a str>,
         tag!(":") >>
         space0 >>
         value: alphanumeric1 >>
-        ignore: not_line_ending >>
+        _ignore: not_line_ending >>
         opt!(line_ending) >>
         (value.trim_end())
     )
@@ -82,7 +86,7 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         complete!(permutation!(
             complete!(call!(kv_parse, "NAME"))?,
             complete!(call!(kv_parse_single, "TYPE")),
-               many1!(call!(kv_parse, "COMMENT"))?,
+            many1!(call!(kv_parse, "COMMENT"))?,
             complete!(call!(kv_parse_single, "DIMENSION")),
             complete!(call!(kv_parse, "EDGE_WEIGHT_TYPE"))?,
             complete!(call!(kv_parse_single, "CAPACITY"))?,
@@ -472,15 +476,15 @@ EOF
             ))
         );
     }
+
+    fn parse_problem_opt(input: String) -> Option<TSPLProblem> {
+        let r_tuple = parse_problem(&input);
+        r_tuple.map(|x| x.1).ok()
+    }
 }
 
 pub fn parse_problem<'a>(input: &'a str) -> IResult<&'a str, TSPLProblem> {
     parse_header(input).and_then(|(input, header)| parse_data_section(input, header))
-}
-
-fn parse_problem_opt(input: String) -> Option<TSPLProblem> {
-    let r_tuple = parse_problem(&input);
-    r_tuple.map(|x| x.1).ok()
 }
 
 //This is incorrect, because I don't know how to pull out the ErrorKind from an IResult
