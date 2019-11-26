@@ -63,7 +63,6 @@ pub type Edge = (usize, usize);
 pub type EdgeList = Vec<Edge>;
 pub type EdgeWeight = u32;
 pub type EdgeWeightList = Vec<EdgeWeight>;
-// pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
 pub type Tour = Vec<usize>;
 
 /// Holds edge information, either in the edge list or adjacency list format.
