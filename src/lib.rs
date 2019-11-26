@@ -322,23 +322,69 @@ fn parse_adjacency_vec(input: Vec<f64>) -> Option<EdgeData> {
 fn combine_demands(demands: Vec<Demand>, dimension: usize) -> Vec<u32> {
     let mut res = vec![0; dimension];
     for demand in demands {
-        res[demand.0] = demand.1
+        res[demand.0 - 1] = demand.1 //TSPLIB counts from 1
     }
     res
 }
 
+//The adjacency list format will have the node_id as the first number, and can be
+//in any order. This function will take a Vec<Vec<usize>>, and for each row,
+//use the first number as the node_id, and put the rest of the numbers in that row's
+//adjacency list. //Eg if we have
+// 4 8 5 6
+// 1 8 0
+// 2 8
+//This will return
+// vec![
+//   vec[0, 1, 8]
+//   vec[8]
+//   vec[]
+//   vec[5, 6, 8]
+// ]
+fn combine_adjacencies(
+    edges: Vec<EdgeData>,
+    edf: &EdgeDataFormat,
+    dimension: &usize,
+) -> Vec<EdgeData> {
+    if *edf == EdgeDataFormat::EDGE_LIST {
+        return edges;
+    }
+
+    let mut res: Vec<EdgeData> = vec![EdgeData::Adj(vec![]); *dimension];
+    for edge_row in edges {
+        if let EdgeData::Adj(adj_row) = edge_row {
+            if let Some((node_id, adjacencies)) = adj_row.split_first() {
+                let mut adj_vec = adjacencies.to_vec();
+                adj_vec.sort();
+                res[*node_id - 1] = EdgeData::Adj(adj_vec); //TSPLIB counts from 1
+            }
+        }
+    }
+    res
+}
+fn ignore_vec<T>(input: Vec<f64>) -> Option<T> {
+    println!(
+        "Warning: Going to ignore this row because its format is unknown: {:?}",
+        input
+    );
+    None
+}
+
 fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, TSPLProblem> {
     //Here we should be building a list of sections that we are expecting based
-    //on the header data. At the moment we are making every section optional.
+    //on the header data. At the moment we are making every section optional,
+    //Or silently ignoring data if the format is not set (which is not ideal).
     let edge_parser = match header.edge_data_format {
         Some(EdgeDataFormat::ADJ_LIST) => parse_adjacency_vec,
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
-        None => parse_edgedata_vec, //TODO: omit the EDGE_DATA_SECTION if there is no Format for it
+        None => ignore_vec, //TODO: omit the EDGE_DATA_SECTION if there is no Format for it
     };
+    //TODO: Be a bit smarter about parser type here. NO_COORDS can be the type, but the problem can be EUC2D
+    //and it will expect a NODE_COORD_SECTION.
     let coord_parser = match header.node_coord_type {
         NodeCoordType::THREED_COORDS => parse_coord3_vec,
         NodeCoordType::TWOD_COORDS => parse_coord2_vec,
-        NodeCoordType::NO_COORDS => parse_coord2_vec, //TODO: omit parsing a NODE_COORD_SECTION
+        NodeCoordType::NO_COORDS => parse_coord2_vec,
     };
     map!(
         input,
@@ -379,7 +425,13 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
                     demands: demands.map(|d| combine_demands(d, header.dimension as usize)),
                     display_data,
                     edge_weights: edge_weights.map(|ew| ew.concat()), //.and_then(build_distance_matrix),
-                    edges,
+                    edges: edges.map(|es| {
+                        combine_adjacencies(
+                            es,
+                            &header.edge_data_format.clone().unwrap(),
+                            &(header.dimension as usize),
+                        )
+                    }),
                     fixed_edges,
                     tours,
                 },
