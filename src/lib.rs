@@ -1,156 +1,22 @@
 #![allow(non_camel_case_types)]
 
-use noisy_float::prelude::*;
+#[macro_use]
+extern crate strum_macros;
 #[macro_use]
 extern crate nom;
+use noisy_float::prelude::*;
 use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1};
 use nom::number::complete::float;
 use nom::{Err, IResult};
-extern crate strum;
-#[macro_use]
-extern crate strum_macros;
-use std::cmp::PartialEq;
-use std::fmt::Debug;
 use std::fs;
 #[allow(unused_imports)]
 use strum::IntoEnumIterator;
 
-//We break down the parsing into two steps, parsing the header and then
-//the problem body based on the metadata in the header:
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FullProblem {
-    pub header: TSPLMeta,
-    pub data: TSPLData,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TSPLMeta {
-    pub name: String,
-    pub problem_type: ProblemType,
-    pub comment: String,
-    pub dimension: u32,
-    pub capacity: Option<u32>,
-    pub edge_weight_type: EdgeWeightType,
-    pub edge_weight_format: Option<EdgeWeightFormat>,
-    pub edge_data_format: Option<EdgeDataFormat>,
-    pub node_coord_type: NodeCoordType,
-    pub display_data_type: DisplayDataType,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct TSPLData {
-    pub node_coordinates: Option<Vec<Coord>>,
-    pub depots: Option<Vec<usize>>,
-    pub demands: Option<Vec<Demand>>,
-    pub edges: Option<Vec<EdgeData>>,
-    pub fixed_edges: Option<EdgeList>,
-    pub display_data: Option<Vec<Coord>>,
-    pub tours: Option<Vec<Tour>>,
-    pub edge_weights: Option<EdgeWeightMatrix>,
-}
-impl TSPLData {
-    pub fn empty() -> TSPLData {
-        TSPLData {
-            node_coordinates: None,
-            depots: None,
-            demands: None,
-            edges: None,
-            fixed_edges: None,
-            display_data: None,
-            tours: None,
-            edge_weights: None,
-        }
-    }
-}
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Coord {
-    Coord2(i64, N32, N32),
-    Coord3(i64, N32, N32, N32),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Demand(pub u32, pub u32);
-
-pub type Edge = (usize, usize);
-pub type EdgeList = Vec<Edge>;
-pub type EdgeWeight = u32;
-pub type EdgeWeightList = Vec<EdgeWeight>;
-pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
-pub type Tour = Vec<usize>;
-
-/// Holds edge information, either in the edge list or adjacency list format.
-/// The adjacency list version is a Vec of N elements, each of which is a list of
-/// connections. Non-connected nodes are still counted as empty lists.
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum EdgeData {
-    Edge(Edge),
-    Adj(Adj),
-}
-pub type Adj = Vec<usize>;
-pub type AdjList = Vec<Adj>;
-
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum ProblemType {
-    TSP,
-    ATSP,
-    SOP,
-    HCP,
-    CVRP,
-    TOUR,
-}
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum EdgeWeightType {
-    EXPLICIT,
-    EUC_2D,
-    EUC_3D,
-    MAX_2D,
-    MAX_3D,
-    MAN_2D,
-    MAN_3D,
-    CEIL_2D,
-    GEO,
-    ATT,
-    XRAY1,
-    XRAY2,
-    SPECIAL,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum EdgeWeightFormat {
-    FUNCTION,
-    FULL_MATRIX,
-    UPPER_ROW,
-    LOWER_ROW,
-    UPPER_DIAG_ROW,
-    LOWER_DIAG_ROW,
-    UPPER_COL,
-    LOWER_COL,
-    UPPER_DIAG_COL,
-    LOWER_DIAG_COL,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum EdgeDataFormat {
-    EDGE_LIST,
-    ADJ_LIST,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum NodeCoordType {
-    TWOD_COORDS,
-    THREED_COORDS,
-    NO_COORDS,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
-pub enum DisplayDataType {
-    COORDS_DISPLAY,
-    TWOD_DISPLAY,
-    NO_DISPLAY,
-}
+mod enums;
+pub use self::enums::*;
 
 //Gives us a parser called kv() that takes a key to look for, and will return
-//the value in KEY: VALUE
+//the value in  a string of "KEY: VALUE"
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
         tag!(key) >>
@@ -162,6 +28,7 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
     )
 );
 
+//Calls kv and then uses str::parse::<T> to parse the VALUE to the type you want
 fn kv_parse<'a, T>(input: &'a str, key: &'a str) -> IResult<&'a str, T>
 where
     T: std::str::FromStr,
@@ -172,10 +39,10 @@ where
     })
 }
 
-//TSPLIB defines all of these key values in its header, and they can be set
+//TSPLIB defines all of these key:value pairs in its header, and they can be set
 //in any order.
-//Cool note: the way we map! the result of permutation! lets kv_parse!
-//the wanted return type and then it calls the right string -> Data type
+//Cool note: the way we map! the result of permutation! lets kv_parse! figure out
+//the wanted return type, and then it calls the right string -> Data type
 //conversion automatically.
 fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
@@ -241,15 +108,30 @@ fn test_numbers_on_line() {
     );
 }
 
+/*
+The data sections look like:
+NODE_DATA_SECTION
+1 3.2 4.0
+2 7.4 8.1
+3 5.2 6.9
+...
+or
+EDGE_WEIGHT_DATA
+1 3 4 5 0 18 3
+5 7 1 9 3 8 2
+...
+So we're abstracting that into a parser that looks for a section title, a newline,
+and then a bunch of lines that contain whitespace delimited numbers.
+We're going to unfortunately (but hopefully not wrongly) cast them to floats at first,
+And then call the given line_parser function on each line, which will turn lines of numbers
+into the right data we want.
+    */
 fn get_section<'a, T>(
     input: &'a str,
     section_title: &'a str,
     line_parser: fn(Vec<f32>) -> Option<T>,
-) -> IResult<&'a str, Vec<T>>
-where
-    T: std::fmt::Debug,
-{
-    let out = do_parse!(
+) -> IResult<&'a str, Vec<T>> {
+    do_parse!(
         input,
         tag!(section_title)
             >> line_ending
@@ -259,13 +141,11 @@ where
             >> opt!(line_ending)
             >> opt!(complete!(tag!("EOF\n")))
             >> (payload)
-    );
-    println!(
-        "Get section for title {:}, returning {:?}",
-        section_title, out
-    );
-    out
+    )
 }
+
+//These functions parse individual lines of numbers into different domain-level types
+
 fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
     match input.len() {
         1 => Some(input[0] as usize),
@@ -406,8 +286,6 @@ EDGE_WEIGHT_TYPE: EUC_2D
 fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, FullProblem> {
     //Here we should be building a list of sections that we are expecting based
     //on the header data. At the moment we are making every section optional.
-    //So required sections are able to be omitted and unrelated/nonsensical sections are
-    //allowed.
     let edge_parser = match header.edge_data_format {
         Some(EdgeDataFormat::ADJ_LIST) => parse_adjacency_vec,
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
