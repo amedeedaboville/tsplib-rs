@@ -1,5 +1,3 @@
-#![allow(non_camel_case_types)]
-
 #[macro_use]
 extern crate strum_macros;
 #[macro_use]
@@ -537,7 +535,7 @@ EOF
     }
 }
 
-///Parse a &str into a Result<TSPLroblem>
+///Parse a `&str` into a `Result<TSPLroblem>`
 pub fn parse_problem<'a>(input: &'a str) -> IResult<&'a str, TSPLProblem> {
     parse_header(input).and_then(|(input, header)| parse_data_section(input, header))
 }
@@ -554,6 +552,7 @@ impl FromStr for TSPLProblem {
     }
 }
 
+///Parse the contents of a file into an `Option<TSPLProblem>`
 pub fn parse_file(filename: &str) -> Option<TSPLProblem> {
     fs::read_to_string(filename)
         .ok()
