@@ -408,7 +408,6 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     //on the header data. At the moment we are making every section optional.
     //So required sections are able to be omitted and unrelated/nonsensical sections are
     //allowed.
-    //Also, the header is fully cloned, because I couldn't figure out the lifetimes.
     let edge_parser = match header.edge_data_format {
         Some(EdgeDataFormat::ADJ_LIST) => parse_adjacency_vec,
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
@@ -419,8 +418,6 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
         NodeCoordType::TWOD_COORDS => parse_coord2_vec,
         NodeCoordType::NO_COORDS => parse_coord2_vec, //TODO: omit parsing a NODE_COORD_SECTION
     };
-    //ATM we just try to parse the node coordinates in both 2d and 3d, and return 2d if it's there.
-    //Would like to be able to switch the parser
     map!(
         input,
         permutation!(
