@@ -4,7 +4,7 @@
 #[macro_use] extern crate nom;
 
 use noisy_float::prelude::*;
-use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1};
+use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1, alphanumeric1};
 use nom::number::complete::double;
 use nom::{Err, IResult};
 use std::fs;
@@ -25,7 +25,7 @@ named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
         tag!(":") >>
         space0 >>
         value: not_line_ending >>
-        opt!(line_ending) >>
+        line_ending >>
         (value.trim_end())
     )
 );
@@ -41,21 +41,51 @@ where
     })
 }
 
+//This version of kv! looks for the first word to the right of the colon and calls
+//that the value. Needed for an odd case where someone wrote TYPE: TSP (Foo Bar)
+//and we want to treat that as TYPE: TSP.
+named_args!(kv_single<'a>(key: &'a str)<&'a str, &'a str>,
+   do_parse!(
+        tag!(key) >>
+        space0 >>
+        tag!(":") >>
+        space0 >>
+        value: alphanumeric1 >>
+        ignore: not_line_ending >>
+        opt!(line_ending) >>
+        (value.trim_end())
+    )
+);
+//Copy of kv_parse for kv_single
+fn kv_parse_single<'a, T>(input: &'a str, key: &'a str) -> IResult<&'a str, T>
+where
+    T: std::str::FromStr,
+{
+    kv_single(input, key).and_then(|(i, v)| match str::parse::<T>(v) {
+        Ok(tv) => Ok((i, tv)),
+        Err(_a) => Err(Err::Error((i, nom::error::ErrorKind::ParseTo))),
+    })
+}
+
 //TSPLIB defines all of these key:value pairs in its header, and they can be set
 //in any order.
 //Cool note: the way we map! the result of permutation! lets kv_parse! figure out
 //the wanted return type, and then it calls the right string -> Data type
 //conversion automatically.
+//The reason that COMMENT is different is that 1 of the problems has multiple
+//COMMENT lines as one big multiline comment, and I wanted to support that.
+//It doesn't need the call to complete! because many1 can take Incomplete, but
+//it looks weird to have many1() + ?. I tried many0 but hit some macro issues.
 fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
         input,
         complete!(permutation!(
             complete!(call!(kv_parse, "NAME"))?,
-            complete!(call!(kv_parse, "TYPE")),
-            complete!(call!(kv_parse::<String>, "COMMENT"))?,
-            complete!(call!(kv_parse, "DIMENSION")),
+            complete!(call!(kv_parse_single, "TYPE")),
+               many1!(call!(kv_parse, "COMMENT"))?,
+            complete!(call!(kv_parse_single, "DIMENSION")),
             complete!(call!(kv_parse, "EDGE_WEIGHT_TYPE"))?,
-            complete!(call!(kv_parse, "CAPACITY"))?,
+            complete!(call!(kv_parse_single, "CAPACITY"))?,
             complete!(call!(kv_parse, "EDGE_WEIGHT_FORMAT"))?,
             complete!(call!(kv_parse, "EDGE_DATA_FORMAT"))?,
             complete!(call!(kv_parse, "DISPLAY_DATA_TYPE"))?,
@@ -64,7 +94,7 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         |(
             name,
             problem_type,
-            comment,
+            comments,
             dimension,
             ewt,
             capacity,
@@ -75,7 +105,7 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         ): (
             Option<String>,
             ProblemType,
-            Option<String>,
+            Option<Vec<String>>,
             u32,
             Option<EdgeWeightType>,
             Option<u32>,
@@ -86,7 +116,7 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         )| TSPLMeta {
             name: name.unwrap_or_else(|| "".to_string()),
             problem_type,
-            comment: comment.unwrap_or_else(|| "".to_string()),
+            comment: comments.map(|comments| comments.join("")).unwrap_or_else(|| "".to_string()),
             dimension,
             capacity,
             edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
@@ -143,32 +173,6 @@ EDGE_WEIGHT_TYPE: EUC_2D
 
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f64>> {
     separated_list!(input, space1, double)
-}
-#[test]
-fn test_pr439() {
-    //let paths = fs::read_dir("examples/alltsp/problems").unwrap();
-let pr439 = "NAME : pr439
-TYPE : TSP
-DIMENSION : 439
-COMMENT : 439-city problem (Padberg/Rinaldi)
-EDGE_WEIGHT_TYPE : EUC_2D
-";
-    let parsed = TSPLMeta {
-        name: String::from("pr439"),
-        problem_type: ProblemType::TSP,
-        comment: String::from("439-city problem (Padberg/Rinaldi)"),
-        dimension: 439,
-        edge_weight_type: EdgeWeightType::EUC_2D,
-        capacity: None,
-        display_data_type: DisplayDataType::NO_DISPLAY,
-        edge_data_format: None,
-        edge_weight_format: None,
-        node_coord_type: NodeCoordType::NO_COORDS,
-    };
-    let actual = parse_header(pr439);
-    println!("actual is {:?}", actual);
-
-    assert_eq!(actual, Ok(("", parsed)))
 }
 
 #[test]
