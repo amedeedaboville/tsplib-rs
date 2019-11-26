@@ -12,6 +12,7 @@ extern crate strum_macros;
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 use std::fs;
+#[allow(unused_imports)]
 use strum::IntoEnumIterator;
 
 //We break down the parsing into two steps, parsing the header and then
@@ -38,12 +39,12 @@ pub struct TSPLMeta {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TSPLData {
-    pub node_coordinates: Option<Vec<Coord2>>,
+    pub node_coordinates: Option<Vec<Coord>>,
     pub depots: Option<Vec<usize>>,
     pub demands: Option<Vec<Demand>>,
     pub edges: Option<Vec<EdgeData>>,
     pub fixed_edges: Option<EdgeList>,
-    pub display_data: Option<Vec<Coord2>>,
+    pub display_data: Option<Vec<Coord>>,
     pub tours: Option<Vec<Tour>>,
     pub edge_weights: Option<EdgeWeightMatrix>,
 }
@@ -62,10 +63,10 @@ impl TSPLData {
     }
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Coord2(pub i64, pub N32, pub N32);
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Coord3(pub i64, pub N32, pub N32, pub N32);
+pub enum Coord {
+    Coord2(i64, N32, N32),
+    Coord3(i64, N32, N32, N32),
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Demand(pub u32, pub u32);
@@ -266,16 +267,16 @@ fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
         _ => None,
     }
 }
-fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord2> {
+fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord> {
     match input.len() {
-        3 => Some(Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
+        3 => Some(Coord::Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
         _ => None,
     }
 }
 
-fn parse_coord3_vec(input: Vec<f32>) -> Option<Coord3> {
+fn parse_coord3_vec(input: Vec<f32>) -> Option<Coord> {
     match input.len() {
-        4 => Some(Coord3(
+        4 => Some(Coord::Coord3(
             input[0] as i64,
             n32(input[1]),
             n32(input[2]),
@@ -349,7 +350,7 @@ fn test_2d_coords() {
     assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
     assert_eq!(
         parse_coord2_vec(input_vec),
-        Some(Coord2(1, n32(1.0), n32(3.0)))
+        Some(Coord::Coord2(1, n32(1.0), n32(3.0)))
     );
 }
 
@@ -408,59 +409,50 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
         Some(EdgeDataFormat::EDGE_LIST) => parse_edgedata_vec,
         None => parse_edgedata_vec, //TODO: omit the EDGE_DATA_SECTION if there is no Format for it
     };
-    //This doesn't work because the return types parse_coord2 and parse3 are different.
-    //So we either make COORD an enum variant, which I wouldn't like, because it feels like it would
-    //allow polymorphic lists.
-    // let coord_parser = match header.node_coord_type {
-    //     NodeCoordType::TWOD_COORDS => parse_coord2_vec,
-    //     NodeCoordType::THREED_COORDS => parse_coord3_vec,
-    //     NodeCoordType::NO_COORDS => parse_coord2_vec, //TODO: same here, omit looking for node_coords
-    // };
+    let coord_parser = match header.node_coord_type {
+        NodeCoordType::THREED_COORDS => parse_coord3_vec,
+        NodeCoordType::TWOD_COORDS => parse_coord2_vec,
+        NodeCoordType::NO_COORDS => parse_coord2_vec, //TODO: omit parsing a NODE_COORD_SECTION
+    };
+    //ATM we just try to parse the node coordinates in both 2d and 3d, and return 2d if it's there.
+    //Would like to be able to switch the parser
     map!(
         input,
         permutation!(
-            complete!(call!(get_section, "NODE_COORD_SECTION", parse_coord2_vec))?,
+            complete!(call!(get_section, "NODE_COORD_SECTION", coord_parser))?,
             complete!(call!(get_section, "DEPOT_SECTION", parse_depot_vec))?,
             complete!(call!(get_section, "DEMAND_SECTION", parse_demand_vec))?,
             complete!(call!(get_section, "EDGE_DATA_SECTION", edge_parser))?,
             complete!(call!(get_section, "FIXED_EDGES_SECTION", parse_edge_vec))?,
-            complete!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord2_vec))?, //TODO make this either 2d or 3d based on DISPLAY_DATA_TYPE
+            complete!(call!(get_section, "DISPLAY_DATA_SECTION", parse_coord2_vec))?, //TODO only call this parser if DISPLAY_DATA_TYPE is TWOD_COORDS
             complete!(call!(get_section, "TOUR_SECTION", parse_tour_vec))?,
             complete!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec))?
         ),
-        |x| {
-            println!("Parsed successfully got {:?}", x);
+        |(coords, depots, demands, edges, fixed_edges, display_data, tours, edge_weights): (
+            Option<Vec<Coord>>,
+            Option<Vec<usize>>,
+            Option<Vec<Demand>>,
+            Option<Vec<EdgeData>>,
+            Option<Vec<Edge>>,
+            Option<Vec<Coord>>,
+            Option<Vec<Tour>>,
+            Option<Vec<EdgeWeightList>>,
+        )| {
             FullProblem {
                 header: header.clone(),
-                data: build_data(&header, x),
+                data: TSPLData {
+                    node_coordinates: coords,
+                    depots,
+                    demands,
+                    display_data: display_data.map(|c2| c2),
+                    edge_weights,
+                    edges,
+                    fixed_edges,
+                    tours,
+                },
             }
         }
     )
-}
-
-fn build_data(
-    header: &TSPLMeta,
-    (node_coordinates, depots, demands, edges, fixed_edges, display_data, tours, edge_weights): (
-        Option<Vec<Coord2>>,
-        Option<Vec<usize>>,
-        Option<Vec<Demand>>,
-        Option<Vec<EdgeData>>,
-        Option<Vec<Edge>>,
-        Option<Vec<Coord2>>,
-        Option<Vec<Tour>>,
-        Option<Vec<EdgeWeightList>>,
-    ),
-) -> TSPLData {
-    TSPLData {
-        node_coordinates,
-        depots,
-        demands,
-        display_data,
-        edge_weights,
-        edges,
-        fixed_edges,
-        tours,
-    }
 }
 #[cfg(test)]
 mod tests {
@@ -477,7 +469,7 @@ mod tests {
         assert_eq!(output, Ok(("", value)));
     }
 
-    //Will give kv_parse a key and a value separated by a : and see if it roundtrips ok.
+    //Will give kv_parse a KEY: VALUE input and see if it roundtrips ok.
     #[test]
     fn test_some_kvs() {
         test_kv("NAME", "some_name".to_string());
@@ -533,14 +525,14 @@ EOF
 
         let mut t = TSPLData::empty();
         t.node_coordinates = Some(vec![
-            Coord2(1, n32(565.0), n32(575.0)),
-            Coord2(2, n32(25.0), n32(185.0)),
-            Coord2(3, n32(345.0), n32(750.0)),
+            Coord::Coord2(1, n32(565.0), n32(575.0)),
+            Coord::Coord2(2, n32(25.0), n32(185.0)),
+            Coord::Coord2(3, n32(345.0), n32(750.0)),
         ]);
         t.display_data = Some(vec![
-            Coord2(1, n32(8.0), n32(124.0)),
-            Coord2(2, n32(125.0), n32(80.0)),
-            Coord2(3, n32(97.0), n32(74.0)),
+            Coord::Coord2(1, n32(8.0), n32(124.0)),
+            Coord::Coord2(2, n32(125.0), n32(80.0)),
+            Coord::Coord2(3, n32(97.0), n32(74.0)),
         ]);
         assert_eq!(
             parse_data_section(ncs, header.clone()),
