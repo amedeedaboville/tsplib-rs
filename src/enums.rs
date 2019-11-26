@@ -5,7 +5,7 @@ use std::fmt::Debug;
 //We break down the parsing into two steps, parsing the header and then
 //the problem body based on the metadata in the header:
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct FullProblem {
+pub struct TSPLProblem {
     pub header: TSPLMeta,
     pub data: TSPLData,
 }
@@ -33,8 +33,9 @@ pub struct TSPLData {
     pub fixed_edges: Option<EdgeList>,
     pub display_data: Option<Vec<Coord>>,
     pub tours: Option<Vec<Tour>>,
-    pub edge_weights: Option<EdgeWeightMatrix>,
+    pub edge_weights: Option<EdgeWeightList>,
 }
+
 impl TSPLData {
     pub fn empty() -> TSPLData {
         TSPLData {
@@ -51,8 +52,8 @@ impl TSPLData {
 }
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Coord {
-    Coord2(i64, N32, N32),
-    Coord3(i64, N32, N32, N32),
+    Coord2(i64, N64, N64),
+    Coord3(i64, N64, N64, N64),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -62,7 +63,7 @@ pub type Edge = (usize, usize);
 pub type EdgeList = Vec<Edge>;
 pub type EdgeWeight = u32;
 pub type EdgeWeightList = Vec<EdgeWeight>;
-pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
+// pub type EdgeWeightMatrix = Vec<Vec<EdgeWeight>>;
 pub type Tour = Vec<usize>;
 
 /// Holds edge information, either in the edge list or adjacency list format.

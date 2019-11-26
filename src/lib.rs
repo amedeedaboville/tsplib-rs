@@ -6,14 +6,16 @@ extern crate strum_macros;
 extern crate nom;
 use noisy_float::prelude::*;
 use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1};
-use nom::number::complete::float;
+use nom::number::complete::double;
 use nom::{Err, IResult};
 use std::fs;
+use std::str::FromStr;
 #[allow(unused_imports)]
 use strum::IntoEnumIterator;
 
 mod enums;
 pub use self::enums::*;
+mod build_matrix;
 
 //Gives us a parser called kv() that takes a key to look for, and will return
 //the value in  a string of "KEY: VALUE"
@@ -95,9 +97,52 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         }
     )
 }
+#[test]
+fn test_parse_header() {
+    let header = "NAME: berlin52
+TYPE: TSP
+DIMENSION: 52
+COMMENT: 52 locations in Berlin (Groetschel)
+EDGE_WEIGHT_TYPE: EUC_2D
+ ";
+    let parsed = TSPLMeta {
+        name: String::from("berlin52"),
+        problem_type: ProblemType::TSP,
+        comment: String::from("52 locations in Berlin (Groetschel)"),
+        dimension: 52,
+        edge_weight_type: EdgeWeightType::EUC_2D,
+        capacity: None,
+        display_data_type: DisplayDataType::NO_DISPLAY,
+        edge_data_format: None,
+        edge_weight_format: None,
+        node_coord_type: NodeCoordType::NO_COORDS,
+    };
+    assert_eq!(parse_header(header), Ok((" ", parsed)))
+}
+#[test]
+fn test_parse_header_works_with_missing_data() {
+    //atm name, comment, and ege weight type are optional.
+    let header = "TYPE: TSP
+DIMENSION: 52
+EDGE_WEIGHT_TYPE: EUC_2D
+ ";
+    let parsed = TSPLMeta {
+        name: String::from(""),
+        problem_type: ProblemType::TSP,
+        comment: String::from(""),
+        dimension: 52,
+        edge_weight_type: EdgeWeightType::EUC_2D,
+        capacity: None,
+        display_data_type: DisplayDataType::NO_DISPLAY,
+        edge_data_format: None,
+        edge_weight_format: None,
+        node_coord_type: NodeCoordType::NO_COORDS,
+    };
+    assert_eq!(parse_header(header), Ok((" ", parsed)))
+}
 
-fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
-    separated_list!(input, space1, float)
+fn numbers_on_line(input: &str) -> IResult<&str, Vec<f64>> {
+    separated_list!(input, space1, double)
 }
 
 #[test]
@@ -129,7 +174,7 @@ into the right data we want.
 fn get_section<'a, T>(
     input: &'a str,
     section_title: &'a str,
-    line_parser: fn(Vec<f32>) -> Option<T>,
+    line_parser: fn(Vec<f64>) -> Option<T>,
 ) -> IResult<&'a str, Vec<T>> {
     do_parse!(
         input,
@@ -146,46 +191,56 @@ fn get_section<'a, T>(
 
 //These functions parse individual lines of numbers into different domain-level types
 
-fn parse_depot_vec(input: Vec<f32>) -> Option<usize> {
+fn parse_depot_vec(input: Vec<f64>) -> Option<usize> {
     match input.len() {
         1 => Some(input[0] as usize),
         _ => None,
     }
 }
-fn parse_coord2_vec(input: Vec<f32>) -> Option<Coord> {
+fn parse_coord2_vec(input: Vec<f64>) -> Option<Coord> {
     match input.len() {
-        3 => Some(Coord::Coord2(input[0] as i64, n32(input[1]), n32(input[2]))),
+        3 => Some(Coord::Coord2(input[0] as i64, n64(input[1]), n64(input[2]))),
         _ => None,
     }
 }
+#[test]
+fn test_2d_coords() {
+    let input = "1 1.0 3.0";
+    let input_vec = vec![1.0, 1.0, 3.0];
+    assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
+    assert_eq!(
+        parse_coord2_vec(input_vec),
+        Some(Coord::Coord2(1, n64(1.0), n64(3.0)))
+    );
+}
 
-fn parse_coord3_vec(input: Vec<f32>) -> Option<Coord> {
+fn parse_coord3_vec(input: Vec<f64>) -> Option<Coord> {
     match input.len() {
         4 => Some(Coord::Coord3(
             input[0] as i64,
-            n32(input[1]),
-            n32(input[2]),
-            n32(input[3]),
+            n64(input[1]),
+            n64(input[2]),
+            n64(input[3]),
         )),
         _ => None,
     }
 }
 
-fn parse_demand_vec(input: Vec<f32>) -> Option<Demand> {
+fn parse_demand_vec(input: Vec<f64>) -> Option<Demand> {
     match input.len() {
         2 => Some(Demand(input[0] as u32, input[1] as u32)),
         _ => None,
     }
 }
 
-fn parse_edge_vec(input: Vec<f32>) -> Option<Edge> {
+fn parse_edge_vec(input: Vec<f64>) -> Option<Edge> {
     match input.len() {
         2 => Some((input[0] as usize, input[1] as usize)),
         _ => None,
     }
 }
 
-fn parse_tour_vec(input: Vec<f32>) -> Option<Tour> {
+fn parse_tour_vec(input: Vec<f64>) -> Option<Tour> {
     match input.len() {
         0 => None,
         _ => Some(
@@ -197,7 +252,7 @@ fn parse_tour_vec(input: Vec<f32>) -> Option<Tour> {
     }
 }
 
-fn parse_weights_vec(input: Vec<f32>) -> Option<EdgeWeightList> {
+fn parse_weights_vec(input: Vec<f64>) -> Option<EdgeWeightList> {
     match input.len() {
         0 => None,
         _ => Some(
@@ -209,14 +264,14 @@ fn parse_weights_vec(input: Vec<f32>) -> Option<EdgeWeightList> {
     }
 }
 
-fn parse_edgedata_vec(input: Vec<f32>) -> Option<EdgeData> {
+fn parse_edgedata_vec(input: Vec<f64>) -> Option<EdgeData> {
     match input.len() {
         2 => Some(EdgeData::Edge((input[0] as usize, input[1] as usize))),
         _ => None,
     }
 }
 
-fn parse_adjacency_vec(input: Vec<f32>) -> Option<EdgeData> {
+fn parse_adjacency_vec(input: Vec<f64>) -> Option<EdgeData> {
     match input.len() {
         len if len < 2 => None,
         _ => Some(EdgeData::Adj(
@@ -228,62 +283,7 @@ fn parse_adjacency_vec(input: Vec<f32>) -> Option<EdgeData> {
     }
 }
 
-#[test]
-fn test_2d_coords() {
-    let input = "1 1.0 3.0";
-    let input_vec = vec![1.0, 1.0, 3.0];
-    assert_eq!(numbers_on_line(input), Ok(("", input_vec.clone())));
-    assert_eq!(
-        parse_coord2_vec(input_vec),
-        Some(Coord::Coord2(1, n32(1.0), n32(3.0)))
-    );
-}
-
-#[test]
-fn test_parse_meta() {
-    let header = "NAME: berlin52
-TYPE: TSP
-DIMENSION: 52
-COMMENT: 52 locations in Berlin (Groetschel)
-EDGE_WEIGHT_TYPE: EUC_2D
- ";
-    let parsed = TSPLMeta {
-        name: String::from("berlin52"),
-        problem_type: ProblemType::TSP,
-        comment: String::from("52 locations in Berlin (Groetschel)"),
-        dimension: 52,
-        edge_weight_type: EdgeWeightType::EUC_2D,
-        capacity: None,
-        display_data_type: DisplayDataType::NO_DISPLAY,
-        edge_data_format: None,
-        edge_weight_format: None,
-        node_coord_type: NodeCoordType::NO_COORDS,
-    };
-    assert_eq!(parse_header(header), Ok((" ", parsed)))
-}
-#[test]
-fn test_parse_problem_works_with_missing_data() {
-    //atm name, comment, and ege weight type are optional.
-    let header = "TYPE: TSP
-DIMENSION: 52
-EDGE_WEIGHT_TYPE: EUC_2D
- ";
-    let parsed = TSPLMeta {
-        name: String::from(""),
-        problem_type: ProblemType::TSP,
-        comment: String::from(""),
-        dimension: 52,
-        edge_weight_type: EdgeWeightType::EUC_2D,
-        capacity: None,
-        display_data_type: DisplayDataType::NO_DISPLAY,
-        edge_data_format: None,
-        edge_weight_format: None,
-        node_coord_type: NodeCoordType::NO_COORDS,
-    };
-    assert_eq!(parse_header(header), Ok((" ", parsed)))
-}
-
-fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, FullProblem> {
+fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, TSPLProblem> {
     //Here we should be building a list of sections that we are expecting based
     //on the header data. At the moment we are making every section optional.
     let edge_parser = match header.edge_data_format {
@@ -318,14 +318,14 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
             Option<Vec<Tour>>,
             Option<Vec<EdgeWeightList>>,
         )| {
-            FullProblem {
+            TSPLProblem {
                 header: header.clone(),
                 data: TSPLData {
                     node_coordinates: coords,
                     depots,
                     demands,
-                    display_data: display_data.map(|c2| c2),
-                    edge_weights,
+                    display_data,
+                    edge_weights: edge_weights.map(|ew| ew.concat()), //.and_then(build_distance_matrix),
                     edges,
                     fixed_edges,
                     tours,
@@ -405,20 +405,20 @@ EOF
 
         let mut t = TSPLData::empty();
         t.node_coordinates = Some(vec![
-            Coord::Coord2(1, n32(565.0), n32(575.0)),
-            Coord::Coord2(2, n32(25.0), n32(185.0)),
-            Coord::Coord2(3, n32(345.0), n32(750.0)),
+            Coord::Coord2(1, n64(565.0), n64(575.0)),
+            Coord::Coord2(2, n64(25.0), n64(185.0)),
+            Coord::Coord2(3, n64(345.0), n64(750.0)),
         ]);
         t.display_data = Some(vec![
-            Coord::Coord2(1, n32(8.0), n32(124.0)),
-            Coord::Coord2(2, n32(125.0), n32(80.0)),
-            Coord::Coord2(3, n32(97.0), n32(74.0)),
+            Coord::Coord2(1, n64(8.0), n64(124.0)),
+            Coord::Coord2(2, n64(125.0), n64(80.0)),
+            Coord::Coord2(3, n64(97.0), n64(74.0)),
         ]);
         assert_eq!(
             parse_data_section(ncs, header.clone()),
             Ok((
                 "",
-                FullProblem {
+                TSPLProblem {
                     header: header.clone(),
                     data: t,
                 }
@@ -427,17 +427,29 @@ EOF
     }
 }
 
-pub fn parse_whole_problem<'a>(input: &'a str) -> IResult<&'a str, FullProblem> {
+pub fn parse_problem<'a>(input: &'a str) -> IResult<&'a str, TSPLProblem> {
     parse_header(input).and_then(|(input, header)| parse_data_section(input, header))
 }
 
-fn parse_whole_problem_opt(input: String) -> Option<FullProblem> {
-    let r_tuple = parse_whole_problem(&input);
+fn parse_problem_opt(input: String) -> Option<TSPLProblem> {
+    let r_tuple = parse_problem(&input);
     r_tuple.map(|x| x.1).ok()
 }
 
-pub fn parse_file_opt(filename: &str) -> Option<FullProblem> {
+//This is incorrect, because I don't know how to pull out the ErrorKind from an IResult
+impl FromStr for TSPLProblem {
+    type Err = nom::error::ErrorKind;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match parse_problem(s) {
+            Ok(x) => Ok(x.1),
+            Err(_) => Err(nom::error::ErrorKind::ParseTo),
+        }
+    }
+}
+
+pub fn parse_file(filename: &str) -> Option<TSPLProblem> {
     fs::read_to_string(filename)
         .ok()
-        .and_then(parse_whole_problem_opt)
+        .and_then(|input| parse_problem(&input).map(|x| x.1).ok())
 }
