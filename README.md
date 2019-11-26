@@ -7,10 +7,9 @@ A Rust parser for TSPLIB problems.
 
 It is often used in combinatorial problem research, or academic instruction of the TSP. The spec is available [here](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp95.pdf).
 
-The goal of this libarry testing is to be able to parse all of TSPLIB without error.
+The goal of this libary testing is to be able to parse all of the programs on the TSPLIB website without error.
 
-At the moment, it can parse all but one of the TSP problems in the [sample directory](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/). The last issue is `usa13509.tsp`, which has multiple `COMMENT` lines.
-
+At the moment, it can parse all the examples TSP and ATSP problems without error, although that is not a guarantee of correctness. Parsing Explicit edge weights returns a 1D Vec<EdgeWeight> instead of a Matrix, and the distance functions are not implemented yet.
 
 Features supported
 -------------
