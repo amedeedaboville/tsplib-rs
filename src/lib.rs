@@ -1,9 +1,8 @@
 #![allow(non_camel_case_types)]
 
-#[macro_use]
-extern crate strum_macros;
-#[macro_use]
-extern crate nom;
+#[macro_use] extern crate strum_macros;
+#[macro_use] extern crate nom;
+
 use noisy_float::prelude::*;
 use nom::character::complete::{line_ending, multispace1, not_line_ending, space0, space1};
 use nom::number::complete::double;
@@ -144,6 +143,32 @@ EDGE_WEIGHT_TYPE: EUC_2D
 
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f64>> {
     separated_list!(input, space1, double)
+}
+#[test]
+fn test_pr439() {
+    //let paths = fs::read_dir("examples/alltsp/problems").unwrap();
+let pr439 = "NAME : pr439
+TYPE : TSP
+DIMENSION : 439
+COMMENT : 439-city problem (Padberg/Rinaldi)
+EDGE_WEIGHT_TYPE : EUC_2D
+";
+    let parsed = TSPLMeta {
+        name: String::from("pr439"),
+        problem_type: ProblemType::TSP,
+        comment: String::from("439-city problem (Padberg/Rinaldi)"),
+        dimension: 439,
+        edge_weight_type: EdgeWeightType::EUC_2D,
+        capacity: None,
+        display_data_type: DisplayDataType::NO_DISPLAY,
+        edge_data_format: None,
+        edge_weight_format: None,
+        node_coord_type: NodeCoordType::NO_COORDS,
+    };
+    let actual = parse_header(pr439);
+    println!("actual is {:?}", actual);
+
+    assert_eq!(actual, Ok(("", parsed)))
 }
 
 #[test]
