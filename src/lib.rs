@@ -259,7 +259,7 @@ fn parse_coord3_vec(input: Vec<f64>) -> Option<Coord> {
 
 fn parse_demand_vec(input: Vec<f64>) -> Option<Demand> {
     match input.len() {
-        2 => Some(Demand(input[0] as u32, input[1] as u32)),
+        2 => Some(Demand(input[0] as usize, input[1] as u32)),
         _ => None,
     }
 }
@@ -313,6 +313,13 @@ fn parse_adjacency_vec(input: Vec<f64>) -> Option<EdgeData> {
         )),
     }
 }
+fn combine_demands(demands: Vec<Demand>, dimension: usize) -> Vec<u32> {
+    let mut res = vec![0; dimension];
+    for demand in demands {
+        res[demand.0] = demand.1
+    }
+    res
+}
 
 fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, TSPLProblem> {
     //Here we should be building a list of sections that we are expecting based
@@ -339,7 +346,16 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
             complete!(call!(get_section, "TOUR_SECTION", parse_tour_vec))?,
             complete!(call!(get_section, "EDGE_WEIGHT_SECTION", parse_weights_vec))?
         ),
-        |(coords, depots, demands, edges, fixed_edges, display_data, tours, edge_weights): (
+        |(
+            node_coordinates,
+            depots,
+            demands,
+            edges,
+            fixed_edges,
+            display_data,
+            tours,
+            edge_weights,
+        ): (
             Option<Vec<Coord>>,
             Option<Vec<usize>>,
             Option<Vec<Demand>>,
@@ -352,9 +368,9 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
             TSPLProblem {
                 header: header.clone(),
                 data: TSPLData {
-                    node_coordinates: coords,
+                    node_coordinates,
                     depots,
-                    demands,
+                    demands: demands.map(|d| combine_demands(d, header.dimension as usize)),
                     display_data,
                     edge_weights: edge_weights.map(|ew| ew.concat()), //.and_then(build_distance_matrix),
                     edges,

@@ -28,7 +28,7 @@ pub struct TSPLMeta {
 pub struct TSPLData {
     pub node_coordinates: Option<Vec<Coord>>,
     pub depots: Option<Vec<usize>>,
-    pub demands: Option<Vec<Demand>>,
+    pub demands: Option<Vec<u32>>,
     pub edges: Option<Vec<EdgeData>>,
     pub fixed_edges: Option<EdgeList>,
     pub display_data: Option<Vec<Coord>>,
@@ -57,7 +57,7 @@ pub enum Coord {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Demand(pub u32, pub u32);
+pub struct Demand(pub usize, pub u32);
 
 pub type Tour = Vec<usize>;
 pub type Edge = (usize, usize);
