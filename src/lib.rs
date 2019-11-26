@@ -120,7 +120,9 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
         )| TSPLMeta {
             name: name.unwrap_or_else(|| "".to_string()),
             problem_type,
-            comment: comments.map(|comments| comments.join("")).unwrap_or_else(|| "".to_string()),
+            comment: comments
+                .map(|comments| comments.join(""))
+                .unwrap_or_else(|| "".to_string()),
             dimension,
             capacity,
             edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),

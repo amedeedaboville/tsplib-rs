@@ -243,7 +243,7 @@ fn parse_alltsp() {
         // println!("parsed got {:?}", parsed);
         match tsplib::parse_file(&pathstr) {
             Some(_) => continue,
-            None => {println!("Error parsing this one, got {:?}", parsed) }
+            None => println!("Error parsing this one, got {:?}", parsed),
         };
     }
 }
@@ -264,7 +264,7 @@ fn parse_allatsp() {
         // println!("parsed got {:?}", parsed);
         match tsplib::parse_file(&pathstr) {
             Some(_) => continue,
-            None => {println!("Error parsing this one, got {:?}", parsed) }
+            None => println!("Error parsing this one, got {:?}", parsed),
         };
     }
 }
