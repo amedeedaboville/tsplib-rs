@@ -9,7 +9,7 @@ It is often used in combinatorial problem research, or academic instruction of t
 
 The goal of this libarry testing is to be able to parse all of TSPLIB without error.
 
-At the moment it should only be able to parse simple TSP, euclidean programs. There are a few
+At the moment it should only be able to parse simple TSP programs. There are a few
 corners that have been cut in the other implementations.
 
 
@@ -27,12 +27,10 @@ Features supported
 Quickstart
 ---
 ```
-use tsplib::parse_problem;
-use std::fs;
+use tsplib::parse_file;
 
-let filename = "tests/testdata/berlin52.tsp";
-let file_contents = fs::read_to_string(filename).unwrap();
-let problem = parse_problem(&file_contents).unwrap().1;
+let tsp = parse_file("tests/testdata/berlin52.tsp").unwrap();
+tsp.
 ```
 
 Wishlist
