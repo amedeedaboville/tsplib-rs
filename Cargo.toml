@@ -8,8 +8,8 @@ description = "A library for parsing TSPLIB files."
 [dependencies]
 noisy_float = "0.1.10"
 nom = "5.0.1"
-strum = "0.15.0"
-strum_macros = "0.15.0"
+strum = "0.16.0"
+strum_macros = "0.16.0"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
