@@ -9,7 +9,7 @@ It is often used in combinatorial problem research, or academic instruction of t
 
 The goal of this libarry testing is to be able to parse all of TSPLIB without error.
 
-At the moment, it can parse 107/111 problems in the [tsp sample directory](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/). The last two issues are the `si` examples, which have extra non-conforming text after the type`TYPE: TSPLIB (Author Name)` and the `usa13509.tsp`, which has multiple `COMMENT` lines.
+At the moment, it can parse all but one of the TSP problems in the [sample directory](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/). The last issue is `usa13509.tsp`, which has multiple `COMMENT` lines.
 
 
 Features supported
@@ -21,7 +21,8 @@ Features supported
 - [x] Parsing EUC2D problems
 - [ ] Parsing Explicit Edge Weight Matrices
 - [ ] Distance functions
-
+- [x] sTSP examples parse
+- [x] ATSP examples parse
 
 Quickstart
 ---
