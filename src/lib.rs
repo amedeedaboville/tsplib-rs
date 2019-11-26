@@ -197,7 +197,7 @@ EDGE_WEIGHT_DATA
 ...
 So we're abstracting that into a parser that looks for a section title, a newline,
 and then a bunch of lines that contain whitespace delimited numbers.
-We're going to unfortunately (but hopefully not wrongly) cast them to floats at first,
+We're going to unfortunately (but not wrongly) cast them to floats at first,
 And then call the given line_parser function on each line, which will turn lines of numbers
 into the right data we want.
     */
@@ -214,6 +214,7 @@ fn get_section<'a, T>(
             >> payload: separated_list!(multispace1, map_opt!(numbers_on_line, line_parser))
             >> space0
             >> opt!(line_ending)
+            >> opt!(complete!(tag!("-1")))
             >> opt!(complete!(tag!("EOF\n")))
             >> (payload)
     )
