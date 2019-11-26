@@ -59,22 +59,22 @@ pub enum Coord {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Demand(pub u32, pub u32);
 
+pub type Tour = Vec<usize>;
 pub type Edge = (usize, usize);
 pub type EdgeList = Vec<Edge>;
 pub type EdgeWeight = u32;
 pub type EdgeWeightList = Vec<EdgeWeight>;
-pub type Tour = Vec<usize>;
+pub type Adj = Vec<usize>;
 
 /// Holds edge information, either in the edge list or adjacency list format.
 /// The adjacency list version is a Vec of N elements, each of which is a list of
 /// connections. Non-connected nodes are still counted as empty lists.
+/// TSPLData has a Vec<EdgeData>.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EdgeData {
     Edge(Edge),
     Adj(Adj),
 }
-pub type Adj = Vec<usize>;
-pub type AdjList = Vec<Adj>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 pub enum ProblemType {
