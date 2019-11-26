@@ -45,7 +45,7 @@ pub struct TSPLData {
     pub fixed_edges: Option<EdgeList>,
     pub display_data: Option<Vec<Coord2>>,
     pub tours: Option<Vec<Tour>>,
-    pub edge_weights: Option<EdgeWeightData>,
+    pub edge_weights: Option<EdgeWeightMatrix>,
 }
 impl TSPLData {
     pub fn empty() -> TSPLData {
@@ -87,20 +87,6 @@ pub enum EdgeData {
 }
 pub type Adj = Vec<usize>;
 pub type AdjList = Vec<Adj>;
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum EdgeWeightData {
-    FUNCTION(Vec<(N32, N32)>),
-    FULL_MATRIX(EdgeWeightList),
-    UPPER_ROW(EdgeWeightList),
-    LOWER_ROW(EdgeWeightList),
-    UPPER_DIAG_ROW(EdgeWeightList),
-    LOWER_DIAG_ROW(EdgeWeightList),
-    UPPER_COL(EdgeWeightList),
-    LOWER_COL(EdgeWeightList),
-    UPPER_DIAG_COL(EdgeWeightList),
-    LOWER_DIAG_COL(EdgeWeightList),
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, Display, EnumString, EnumIter)]
 pub enum ProblemType {
@@ -452,39 +438,6 @@ fn parse_data_section<'a>(input: &'a str, header: TSPLMeta) -> IResult<&'a str, 
     )
 }
 
-fn combine_edge_weights(
-    format: &EdgeWeightFormat,
-    data: &EdgeWeightMatrix,
-) -> Option<EdgeWeightData> {
-    let mut combined: EdgeWeightList = Vec::new();
-    for row in data.iter() {
-        combined.extend(row);
-    }
-    //TODO this function isn't very good. It combines the lists of lists into one.
-    //Basically it compiles but doesn't help at all, unless you have a FULL_MATRIX, which might be
-    //easier to recover
-    //It would be so much better if we had a proper data type for EdgeWeightData.
-    //At the very least here we should untangle all different data formats and build a full matrix.
-    //Most TSP problems are small enough that building a full matrix isn't that inconvenient, and
-    //it fits a superset of most users' needs. If you want, you can thin it out and garbage collect it
-    //after the fact.
-
-    match format {
-        //If we were given some EDGE_WEIGHT_DATA, but the header specified FUNCTION as EDGE_WEIGHT_FORMAT,
-        //we throw that data away.
-        EdgeWeightFormat::FUNCTION => None,
-        EdgeWeightFormat::FULL_MATRIX => Some(EdgeWeightData::FULL_MATRIX(combined)),
-        EdgeWeightFormat::UPPER_ROW => Some(EdgeWeightData::UPPER_ROW(combined)),
-        EdgeWeightFormat::LOWER_ROW => Some(EdgeWeightData::LOWER_ROW(combined)),
-        EdgeWeightFormat::UPPER_DIAG_ROW => Some(EdgeWeightData::UPPER_DIAG_ROW(combined)),
-        EdgeWeightFormat::LOWER_DIAG_ROW => Some(EdgeWeightData::LOWER_DIAG_ROW(combined)),
-        EdgeWeightFormat::UPPER_COL => Some(EdgeWeightData::UPPER_COL(combined)),
-        EdgeWeightFormat::LOWER_COL => Some(EdgeWeightData::LOWER_COL(combined)),
-        EdgeWeightFormat::UPPER_DIAG_COL => Some(EdgeWeightData::UPPER_DIAG_COL(combined)),
-        EdgeWeightFormat::LOWER_DIAG_COL => Some(EdgeWeightData::LOWER_DIAG_COL(combined)),
-    }
-}
-
 fn build_data(
     header: &TSPLMeta,
     (node_coordinates, depots, demands, edges, fixed_edges, display_data, tours, edge_weights): (
@@ -503,8 +456,7 @@ fn build_data(
         depots,
         demands,
         display_data,
-        edge_weights: edge_weights
-            .and_then(|e| combine_edge_weights(header.edge_weight_format.as_ref().unwrap(), &e)),
+        edge_weights,
         edges,
         fixed_edges,
         tours,
