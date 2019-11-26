@@ -174,9 +174,9 @@ where
 
 //TSPLIB defines all of these key values in its header, and they can be set
 //in any order.
-//Cool note: the way we map! the result of permutation! to build_header tells each
-//kv_parse! the type of each key:value (eg ProblemType), and calls its
-//the right string -> Data type conversion automatically.
+//Cool note: the way we map! the result of permutation! lets kv_parse!
+//the wanted return type and then it calls the right string -> Data type
+//conversion automatically.
 fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
         input,
@@ -192,36 +192,41 @@ fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
             call!(kv_parse, "DISPLAY_DATA_TYPE")?,
             call!(kv_parse, "NODE_COORD_TYPE")?
         ),
-        build_header
+        |(
+            name,
+            problem_type,
+            comment,
+            dimension,
+            ewt,
+            capacity,
+            edge_weight_format,
+            edge_data_format,
+            ddt,
+            nct,
+        ): (
+            Option<String>,
+            ProblemType,
+            Option<String>,
+            u32,
+            Option<EdgeWeightType>,
+            Option<u32>,
+            Option<EdgeWeightFormat>,
+            Option<EdgeDataFormat>,
+            Option<DisplayDataType>,
+            Option<NodeCoordType>,
+        )| TSPLMeta {
+            name: name.unwrap_or_else(|| "".to_string()),
+            problem_type,
+            comment: comment.unwrap_or_else(|| "".to_string()),
+            dimension,
+            capacity,
+            edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
+            edge_data_format,
+            edge_weight_format,
+            node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
+            display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
+        }
     )
-}
-
-fn build_header(
-    (name, problem_type, comment, dimension, ewt, capacity, ewf, edf, ddt, nct): (
-        Option<String>,
-        ProblemType,
-        Option<String>,
-        u32,
-        Option<EdgeWeightType>,
-        Option<u32>,
-        Option<EdgeWeightFormat>,
-        Option<EdgeDataFormat>,
-        Option<DisplayDataType>,
-        Option<NodeCoordType>,
-    ),
-) -> TSPLMeta {
-    TSPLMeta {
-        name: name.unwrap_or_else(|| "".to_string()),
-        problem_type,
-        comment: comment.unwrap_or_else(|| "".to_string()),
-        dimension,
-        capacity,
-        edge_weight_type: ewt.unwrap_or(EdgeWeightType::EUC_2D),
-        edge_data_format: edf,
-        edge_weight_format: ewf,
-        node_coord_type: nct.unwrap_or(NodeCoordType::NO_COORDS),
-        display_data_type: ddt.unwrap_or(DisplayDataType::NO_DISPLAY),
-    }
 }
 
 fn numbers_on_line(input: &str) -> IResult<&str, Vec<f32>> {
