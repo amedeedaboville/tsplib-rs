@@ -9,8 +9,7 @@ It is often used in combinatorial problem research, or academic instruction of t
 
 The goal of this libarry testing is to be able to parse all of TSPLIB without error.
 
-At the moment it should only be able to parse simple TSP programs. There are a few
-corners that have been cut in the other implementations.
+At the moment, it can parse 107/111 problems in the [tsp sample directory](http://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/tsp/). The last two issues are the `si` examples, which have extra non-conforming text after the type`TYPE: TSPLIB (Author Name)` and the `usa13509.tsp`, which has multiple `COMMENT` lines.
 
 
 Features supported
@@ -30,7 +29,6 @@ Quickstart
 use tsplib::parse_file;
 
 let tsp = parse_file("tests/testdata/berlin52.tsp").unwrap();
-tsp.
 ```
 
 Wishlist
@@ -49,7 +47,7 @@ Notes
 For the types, my interpretation of the spec is:
 * "integers" that are positive numbers are u32, because "The integers are assumed to be represented in 32-bit words."
 * "integers" that are indices are represented as `usize`.
-* "reals" are exposed as `noisy_float` n64s, which are "non-NaN" floats, which implement Ord and Eq. We use them so we can put them in VecThe spec says "All computations involving floating-point numbers are carried out in double precision arithmetic."
+* "reals" are exposed as `noisy_float` n64s, which are "non-NaN" floats, which implement Ord and Eq. The spec says "All computations involving floating-point numbers are carried out in double precision arithmetic."
 
 This is built using Nom, the parser combinator library. Unfortunately I don't fully understand how to deal with the errors, as they contain references to the input, and also are a big stack of things, so unfortunately there is not much clean error handling. The goal is that it should be able to parse the example instances or give a rough place the parsing failed.
 
