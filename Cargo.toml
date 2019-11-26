@@ -3,6 +3,7 @@ name = "tsplib"
 version = "0.3.0"
 authors = ["Amédée d'Aboville <amedee.daboville@gmail.com>"]
 edition = "2018"
+description = "A library for parsing TSPLIB files."
 
 [dependencies]
 noisy_float = "0.1.10"
