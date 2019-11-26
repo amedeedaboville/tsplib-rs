@@ -249,3 +249,24 @@ fn parse_alltsp() {
         };
     }
 }
+
+#[test]
+fn parse_allatsp() {
+    let paths = fs::read_dir("examples/allatsp").unwrap();
+
+    for path in paths {
+        let pathpath = path.unwrap().path();
+        let pathstr = pathpath.to_str().unwrap();
+        if !pathstr.ends_with(".atsp") {
+            continue;
+        };
+        println!("path is: {}", pathstr);
+        let contents = fs::read_to_string(pathstr).unwrap();
+        let parsed = parse_problem(&contents);
+        // println!("parsed got {:?}", parsed);
+        match tsplib::parse_file(&pathstr) {
+            Some(_) => continue,
+            None => {println!("Error parsing this one, got {:?}", parsed) }
+        };
+    }
+}
