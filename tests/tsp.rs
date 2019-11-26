@@ -227,3 +227,25 @@ fn bays29() {
         }
     );
 }
+
+
+#[test]
+fn parse_alltsp() {
+    let paths = fs::read_dir("examples/alltsp/problems").unwrap();
+
+    for path in paths {
+        let pathpath = path.unwrap().path();
+        let pathstr = pathpath.to_str().unwrap();
+        println!("path is: {}", pathstr);
+        if !pathstr.ends_with(".tsp") {
+            continue;
+        };
+        let contents = fs::read_to_string(pathstr).unwrap();
+        let parsed = parse_problem(&contents);
+        // println!("parsed got {:?}", parsed);
+        match tsplib::parse_file(&pathstr) {
+            Some(_) => continue,
+            None => {println!("Error parsing this one, got {:?}", parsed) }
+        };
+    }
+}

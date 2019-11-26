@@ -22,6 +22,7 @@ mod build_matrix;
 named_args!(kv<'a>(key: &'a str)<&'a str, &'a str>,
    do_parse!(
         tag!(key) >>
+        space0 >>
         tag!(":") >>
         space0 >>
         value: not_line_ending >>
@@ -49,18 +50,18 @@ where
 fn parse_header(input: &str) -> IResult<&str, TSPLMeta> {
     map!(
         input,
-        permutation!(
-            call!(kv_parse, "NAME")?,
-            call!(kv_parse, "TYPE"),
-            call!(kv_parse, "COMMENT")?,
-            call!(kv_parse, "DIMENSION"),
-            call!(kv_parse, "EDGE_WEIGHT_TYPE")?,
-            call!(kv_parse, "CAPACITY")?,
-            call!(kv_parse, "EDGE_WEIGHT_FORMAT")?,
-            call!(kv_parse, "EDGE_DATA_FORMAT")?,
-            call!(kv_parse, "DISPLAY_DATA_TYPE")?,
-            call!(kv_parse, "NODE_COORD_TYPE")?
-        ),
+        complete!(permutation!(
+            complete!(call!(kv_parse, "NAME"))?,
+            complete!(call!(kv_parse, "TYPE")),
+            complete!(call!(kv_parse::<String>, "COMMENT"))?,
+            complete!(call!(kv_parse, "DIMENSION")),
+            complete!(call!(kv_parse, "EDGE_WEIGHT_TYPE"))?,
+            complete!(call!(kv_parse, "CAPACITY"))?,
+            complete!(call!(kv_parse, "EDGE_WEIGHT_FORMAT"))?,
+            complete!(call!(kv_parse, "EDGE_DATA_FORMAT"))?,
+            complete!(call!(kv_parse, "DISPLAY_DATA_TYPE"))?,
+            complete!(call!(kv_parse, "NODE_COORD_TYPE"))?
+        )),
         |(
             name,
             problem_type,
