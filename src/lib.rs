@@ -537,6 +537,7 @@ EOF
     }
 }
 
+///Parse a &str into a Result<TSPLroblem>
 pub fn parse_problem<'a>(input: &'a str) -> IResult<&'a str, TSPLProblem> {
     parse_header(input).and_then(|(input, header)| parse_data_section(input, header))
 }
